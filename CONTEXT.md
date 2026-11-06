@@ -16,7 +16,10 @@ public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique :
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
 de la v2 a échoué à l'étape « Deploy » (build correct, bloqué 11 min côté GitHub) : le push suivant
-(`9c0aa84`) l'a relancé. v3 (accueil de la maquette) le même soir. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
+(`9c0aa84`) l'a relancé. v3 (accueil de la maquette, `19bb06e`) le même soir :
+même panne de déploiement (délai dépassé, puis relance restée « Queued » 1 h 30), publiée par un commit
+vide (`bd60920`). **v3 vérifiée en ligne** : worker `v=3`, caches `legato-v3` et `legato-fonts`, 38 / 38.
+Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
 `legato-v2`, `tools/test_engine.js` lancé sur kkjsf.github.io : 38 / 38, partition affichée en 800 x 360.
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
