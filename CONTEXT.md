@@ -11,10 +11,13 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**Prototype v1 (2026-11-06), en local seulement** : pas encore de dépôt git ni de mise en ligne
-(il faudra `github.com/kkjsf/legato` + Pages pour tester sur le téléphone, Web MIDI exigeant le
-HTTPS ; sur PC, `http://localhost:8133` suffit, localhost compte comme sécurisé). **Pas encore
-essayé avec le vrai P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon.
+**Prototype v1 en ligne (2026-11-06)** : https://kkjsf.github.io/legato/, dépôt public
+`git@github.com:kkjsf/legato.git` (`7af8a49` v1, `a0bfb8c` palette de Harmonic Atlas : or = main
+droite, violet = main gauche, crème des touches, titre en Playfair Display). Pages sur `main`,
+racine. `maquettes.html` est exclu par `.gitignore` (ne pas le publier). Vérifié en ligne : page,
+manifeste, worker (cache `legato-v1`), icônes. **Pas encore essayé avec le vrai P-145.** Le lien avec
+Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper `APP_VERSION` (le worker
+en dérive son cache), commit, push.
 
 ### Prototype v1 : ce qu'il y a
 
