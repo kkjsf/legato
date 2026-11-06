@@ -3,13 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#121621">
+<meta name="theme-color" content="#0b0d0f">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&display=swap">
 <title>Legato</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
-:root{--bg:#121621;--panel:#1a2030;--chip:#262e42;--line:#323b52;--text:#ece8df;--muted:#99a2b6;--ivory:#f2ebdc;--rh:#f0a53e;--lh:#5ba9e6;--ok:#44bf88;--err:#e5554b;color-scheme:dark}
+:root{--bg:#0b0d0f;--panel:#111417;--chip:#181c20;--line:#242830;--text:#d8d0c4;--muted:#8b93a3;--ivory:#f0e8d8;--rh:#c9a84c;--lh:#9384bd;--ok:#44bf88;--err:#e5554b;color-scheme:dark}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
 button,select,input{font:inherit;color:inherit}
@@ -20,7 +22,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--rh);outline-of
 /* accueil + diagnostic */
 .page{max-width:1000px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 48px max(16px,env(safe-area-inset-left))}
 .hd{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
-.logo{font:italic 700 34px/1 Georgia,"Times New Roman",serif;margin-right:auto}
+.logo{font:italic 700 34px/1 "Playfair Display",Georgia,"Times New Roman",serif;margin-right:auto}
 .pill{display:inline-flex;align-items:center;gap:8px;font-size:13px;background:var(--chip);border:0;border-radius:16px;padding:7px 12px}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
 .pill.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(68,191,136,.25)}
@@ -28,7 +30,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--rh);outline-of
 h2{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:24px 0 10px;font-weight:600}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;position:relative;min-width:0}
-.card:hover{border-color:#4a5571}
+.card:hover{border-color:#2e3440}
 .card b{font-size:15.5px}
 .card small{color:var(--muted);font-size:12.5px}
 .card .best{font-size:12px;color:var(--ok)}
@@ -54,7 +56,7 @@ ol.help li{margin:3px 0}
 .big{font-size:30px;font-weight:700}
 .vel{height:9px;border-radius:5px;background:var(--chip);overflow:hidden;margin-top:8px}
 .vel b{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--lh),var(--rh))}
-pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#cfd6e4;white-space:pre;overflow-x:auto;min-height:12em}
+pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;white-space:pre;overflow-x:auto;min-height:12em}
 #dkeys{width:100%;height:70px;display:block;margin-top:10px}
 
 /* jeu */
@@ -469,10 +471,10 @@ class Player {
 }
 
 /* ---------- dessin ---------- */
-const COL = { bg: '#121621', line: '#323b52', ivory: '#f2ebdc', ebony: '#0b0d12', R: '#f0a53e', L: '#5ba9e6', ok: '#44bf88', err: '#e5554b', text: '#ece8df', muted: '#99a2b6' };
+const COL = { bg: '#0b0d0f', line: '#242830', ivory: '#f0e8d8', ebony: '#050607', R: '#c9a84c', L: '#9384bd', ok: '#44bf88', err: '#e5554b', text: '#d8d0c4', muted: '#8b93a3' };
 const KEYCOL = { // [touche blanche, touche noire]
-  hR: ['#f8dcb0', '#7d5016'], hL: ['#c5e0f5', '#1f4b73'], aR: ['#f2c785', '#9a6420'], aL: ['#a7cdec', '#2c5f8f'],
-  ok: ['#44bf88', '#2f9d6c'], err: ['#e5554b', '#b83a32'], tap: ['#c9c2b3', '#4a5571'] };
+  hR: ['#ecd9a0', '#7a6328'], hL: ['#d6cfea', '#4a3f6e'], aR: ['#e2c574', '#8f7330'], aL: ['#b9addc', '#5b4d8a'],
+  ok: ['#44bf88', '#2f9d6c'], err: ['#e5554b', '#b83a32'], tap: ['#c9c2b3', '#3a4150'] };
 let P = null, view = 'home';
 const cv = $('#cv'), ctx = cv.getContext('2d');
 const KB = { lo: 48, hi: 84, whites: [], pos: {}, W: 0, H: 0, hitY: 0, kh: 0 };
@@ -577,10 +579,10 @@ function drawKeys(st) {
 function drawHand(x, y, side, lit, dim) {
   const M = v => side === 'L' ? 64 - v : v;
   ctx.save(); ctx.translate(x, y); ctx.globalAlpha = dim ? 0.35 : 0.85;
-  ctx.fillStyle = '#2e374d'; ctx.strokeStyle = '#4a5571'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#1e2329'; ctx.strokeStyle = '#3a4150'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.roundRect(side === 'L' ? 8 : 14, 36, 42, 30, 13); ctx.fill();
   const finger = (i, fx, fy, h, rot) => {
-    ctx.save(); ctx.fillStyle = lit.has(i) ? COL[side] : '#2e374d';
+    ctx.save(); ctx.fillStyle = lit.has(i) ? COL[side] : '#1e2329';
     if (rot) { ctx.translate(M(8), 60); ctx.rotate(rot); ctx.translate(-M(8), -60); }
     ctx.beginPath(); ctx.roundRect(side === 'L' ? 64 - fx - 10 : fx, fy, 10, h, 5); ctx.fill(); ctx.stroke(); ctx.restore();
   };
@@ -687,7 +689,7 @@ function diagNote(m, vel) {
   const whites = []; for (let k = 21; k <= 108; k++) if (!isBlack(k)) whites.push(k);
   const kw = r.width / whites.length, pos = {};
   whites.forEach((k, i) => { pos[k] = i * kw; x2.fillStyle = MIDI.down.has(k) ? COL.R : COL.ivory; x2.fillRect(i * kw + 0.5, 0, kw - 1, r.height); });
-  for (let k = 21; k <= 108; k++) if (isBlack(k)) { x2.fillStyle = MIDI.down.has(k) ? '#c27a1c' : COL.ebony; x2.fillRect(pos[k - 1] + kw * 0.7, 0, kw * 0.6, r.height * 0.62); }
+  for (let k = 21; k <= 108; k++) if (isBlack(k)) { x2.fillStyle = MIDI.down.has(k) ? '#a58a3a' : COL.ebony; x2.fillRect(pos[k - 1] + kw * 0.7, 0, kw * 0.6, r.height * 0.62); }
 }
 
 /* ---------- accueil ---------- */
