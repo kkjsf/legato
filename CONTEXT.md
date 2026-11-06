@@ -15,7 +15,9 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
-de la v2 a échoué à l'étape « Deploy » (build correct, erreur côté GitHub) : un nouveau push le relance.
+de la v2 a échoué à l'étape « Deploy » (build correct, bloqué 11 min côté GitHub) : le push suivant
+(`9c0aa84`) l'a relancé. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
+`legato-v2`, `tools/test_engine.js` lancé sur kkjsf.github.io : 38 / 38, partition affichée en 800 x 360.
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
