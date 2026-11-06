@@ -11,15 +11,50 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**Prototype v1 en ligne (2026-11-06)** : https://kkjsf.github.io/legato/, dépôt public
-`git@github.com:kkjsf/legato.git` (`7af8a49` v1, `a0bfb8c` palette de Harmonic Atlas : or = main
-droite, violet = main gauche, crème des touches, titre en Playfair Display). Pages sur `main`,
-racine. `maquettes.html` est exclu par `.gitignore` (ne pas le publier). Vérifié en ligne : page,
-manifeste, worker (cache `legato-v1`), icônes. **Pas encore essayé avec le vrai P-145.** Le lien avec
-Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper `APP_VERSION` (le worker
-en dérive son cache), commit, push.
+**v2 en ligne (2026-11-06), la première vraie version** : https://kkjsf.github.io/legato/, dépôt
+public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
+prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
+des touches, titre en Playfair Display), puis la v2 (partition qui défile, métronome, démo).
+`maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
+P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
+`APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
 
-### Prototype v1 : ce qu'il y a
+### v2 (2026-11-06) : ce qui s'ajoute au prototype
+
+- **Deux vues au choix**, mémorisées (`SET.view`, bouton icône dans la barre, réglages du passage
+  et de l'accueil) : les notes qui tombent, ou la **partition qui défile** (canvas, comme le reste) :
+  grand-portée sur papier ivoire, tête de lecture fixe, espacement proportionnel au temps
+  (`SC.ppb`, au moins 6 interlignes par temps, plus si le morceau a des doubles croches), clé,
+  armure et chiffrage collés à gauche (les notes passées s'y effacent), barres de mesure et numéros
+  au-dessus de la portée, doigtés MD au-dessus de la portée et MG contre les notes, têtes vertes
+  (juste) / rouges (faux ou raté) / or (groupe attendu), l'autre main estompée. Clavier en bas dans
+  les deux vues. Pas de silences ni de liaisons dessinés (l'espacement montre la durée).
+- **Gravure** (`engrave`, une fois par `Player`, sur ses copies de notes, en temps et en degrés) :
+  accords par main et attaque, figures depuis la durée (ronde, blanche, noire, croche, double,
+  pointées), hampes selon la note la plus éloignée de la ligne du milieu, ligatures par temps (par
+  mesure en 3/4, par demi-mesure en 4/4), secondes décalées, altérations accidentelles valables
+  jusqu'à la barre, bécarres. Chaque note porte `step` (place sur la portée, Do0 = 0) et `alt`.
+- **Armure** : `key` (dièses > 0, bémols < 0) sur chaque morceau ; pour un import, l'armure du
+  fichier (méta `0x59`) sinon `guessKey` (celle qui demande le moins d'altérations) ; `spell` épelle
+  une hauteur MIDI par la ligne des quintes (Fa♯ plutôt que Sol♭ en Fa majeur). Les imports gardent
+  aussi le chiffrage d'origine (`tn` / `td`).
+- **Métronome** (`SET.metro`, icône dans la barre) : clic Web Audio accentué sur le 1er temps,
+  programmé 250 ms à l'avance sur l'horloge audio (`acAt` passe par `getOutputTimestamp`), calé sur
+  le temps du moteur, donc il suit le tempo %. Se tait en pause et pendant une attente (les clics
+  déjà programmés sont annulés). Le décompte du mode tempo clique toujours, métronome coupé ou non.
+- **Mode démo** (3e mode : Attente, Tempo, Démo ; jamais mémorisé comme mode du morceau) : Legato
+  joue les deux mains, sur le piano par la sortie MIDI (MD vélocité 72, MG 56), sinon (ou si
+  « le téléphone » est choisi) par le synthé ; les touches s'allument avec le doigté, pas de score
+  ni de bilan, boucle possible.
+- **Horloge** : les notes jouées par l'appli (autre main, démo) partent 100 ms en avance,
+  horodatées (`send` avec horodatage Web MIDI, `synth` avec `acAt`). La boucle d'images ne bride
+  plus le pas du moteur qu'au-delà de 250 ms : à 50 ms, le moindre à-coup faisait décrocher le
+  métronome de l'horloge. Le mode tempo démarre 0,3 s avant le décompte pour que le 1er clic soit
+  programmé à l'avance comme les autres.
+- Hors ligne : le worker garde les polices Google (Noto Music dessine les clés) dans `legato-fonts`,
+  qui survit aux changements de version.
+
+### Prototype v1 : la base
 
 - `index.html` (fichier unique, vanilla JS, canvas), `sw.js` (cache `legato-v<APP_VERSION>`, ne
   touche qu'à ses caches), `manifest.json` (`id` `/legato/app`), `icons/` (`tools/build_icons.py`).
@@ -48,12 +83,21 @@ en dérive son cache), commit, push.
 
 ### Testé (2026-11-06, sans piano)
 
-Avec un faux `requestMIDIAccess` injecté dans la page : mode attente sur tout le Menuet main
-droite (64 groupes, une fausse note voulue, 98 %, les 37 notes de main gauche envoyées à la
-sortie), mode tempo 2 mains (100 / 101, rythme ± 32 ms « plutôt en retard », équilibre MG 90 / MD
-65), import d'un MIDI fabriqué (120 bpm, 3/4, statut courant, mains par piste), diagnostic, clic
-sur les touches, rendu en 800 x 360. **Pas vérifié** : le vrai P-145 (reconnaissance sur Android,
-notes envoyées jouées par le piano, son du téléphone par l'audio USB, latence).
+**`tools/test_engine.js`**, à lancer dans la page servie en local (pas en `file://`), console :
+`(await import('./tools/test_engine.js?' + Date.now())).run()`. Faux piano MIDI injecté
+(`requestMIDIAccess` remplacé, entrée dont on appelle `onmidimessage`, sortie qui enregistre `send`
+et son horodatage), moteur piloté à la main, réglages et `localStorage` remis comme avant. **38
+contrôles, tous verts en v2** : mode attente MD sur tout le Menuet (64 groupes, une fausse note
+voulue, 63 / 64, les 37 notes de MG envoyées au piano), tempo 2 mains à ± 30 ms (101 / 101, ± 14,5
+ms, équilibre lu), tempo MD (MG programmée 0 à 100 ms à l'avance), démo (101 notes au piano, ou au
+téléphone sans sortie, jeu de l'élève ignoré, pas de bilan, pas mémorisée), métronome (décompte,
+un clic par temps, accents en 3/4, pause, changement de tempo, régularité mesurée en temps réel :
+±1 ms), gravure (armure, accord, ligatures, blanche pointée, altérations accidentelles et bécarres,
+armure devinée, épellation), import d'un MIDI fabriqué (120 bpm, 3/4, 3 bémols, statut courant),
+1 236 images dessinées dans les deux vues pour tous les morceaux sans erreur, clés mesurées.
+Vérifié aussi à l'œil en 800 x 360 (partition du Menuet, gamme de Fa, démo). **Pas vérifié** : le
+vrai P-145 (reconnaissance sur Android, notes envoyées jouées par le piano, son du téléphone par
+l'audio USB, latence), le métronome entendu sur le téléphone.
 
 ### Maquettes
 
@@ -106,6 +150,18 @@ complète : 7 à 8 sessions (détail par lot dans la section « Ce que ça chang
 - Le navigateur de test refuse Web MIDI : injecter un faux `navigator.requestMIDIAccess` (entrée
   dont on appelle `onmidimessage`, sortie qui enregistre `send`) puis `midiInit()`.
 - Les fonctions du script sont globales (`noteOn`, `P`, `MIDI`...), pratique pour les tests.
+- Le volet navigateur visible fait tourner la boucle d'images de l'appli : un test qui avance le
+  moteur en temps réel (`await`) le ferait avancer deux fois. `test_engine.js` compte les images
+  et laisse alors la boucle de l'appli travailler.
+- Garde anti-écho de 80 ms (`MIDI.recent`) : en test, les scénarios s'enchaînent en quelques ms,
+  une note jouée juste après qu'une autre de même hauteur a été envoyée est ignorée. La vider entre
+  deux scénarios.
+- Partition : les clés reprennent la solution des maquettes (encre du glyphe mesurée au canvas par
+  `measureText`, `measureClefs` relancée quand Noto Music est chargée), dièses / bémols / bécarres
+  dessinés en chemins (`drawAcc`). Noto Music n'est que dans la pile `MUSIC_FONT`, jamais dans la
+  police de l'interface.
+- Métronome : ne jamais programmer un clic avec un retard négatif (il part tout de suite, en
+  retard de la latence de sortie). D'où les 250 ms d'avance et les 0,3 s avant le décompte.
 
 ## Pièges des maquettes
 
