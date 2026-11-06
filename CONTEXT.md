@@ -11,16 +11,30 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v2 en ligne (2026-11-06), la première vraie version** : https://kkjsf.github.io/legato/, dépôt
+**v3 en ligne (2026-11-06)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
 de la v2 a échoué à l'étape « Deploy » (build correct, bloqué 11 min côté GitHub) : le push suivant
-(`9c0aa84`) l'a relancé. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
+(`9c0aa84`) l'a relancé. v3 (accueil de la maquette) le même soir. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
 `legato-v2`, `tools/test_engine.js` lancé sur kkjsf.github.io : 38 / 38, partition affichée en 800 x 360.
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v3 (2026-11-06) : l'accueil de la maquette
+
+Accueil refait sur l'écran 1 de `maquettes.html`, sans rien défiler en paysage (800 x 360) : panneau
+de gauche (logo, pastille du piano, anneau du temps joué aujourd'hui sur 20 min, série de jours
+d'affilée, bouton « Reprendre · <dernier morceau> », lien vers le diagnostic) et quatre cartes :
+**Doigtés** (mini clavier de la prochaine gamme à réussir avec ses doigts, puces des 4 gammes, ✓ à
+90 % et plus), **Répertoire** (barre du meilleur score par morceau), **Mes fichiers** (imports +
+bouton), **Réglages** (autre main, doigtés, vue, métronome, mains dessinées). En portrait ou sous
+700 px : une seule colonne qui défile. Temps joué : compté dans la boucle d'images quand un morceau
+tourne (pas en démo), `localStorage` `legato-practice` = { 'AAAA-MM-JJ': secondes }, un jour compte
+dans la série à partir d'une minute. Dernier morceau : `legato-last`. L'aide « Brancher le P-145 »
+est passée dans le diagnostic. Les cartes « Lecture clé de fa » et « Accords » de la maquette
+attendent leurs fonctions.
 
 ### v2 (2026-11-06) : ce qui s'ajoute au prototype
 

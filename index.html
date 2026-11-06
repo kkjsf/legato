@@ -28,13 +28,45 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--rh);outline-of
 .pill.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(68,191,136,.25)}
 .pill.bad i{background:var(--err)}
 h2{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:24px 0 10px;font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-align:left;display:flex;flex-direction:column;gap:3px;position:relative;min-width:0}
-.card:hover{border-color:#2e3440}
-.card b{font-size:15.5px}
-.card small{color:var(--muted);font-size:12.5px}
-.card .best{font-size:12px;color:var(--ok)}
-.card .x{position:absolute;top:6px;right:6px;background:none;border:0;color:var(--muted);font-size:16px;width:28px;height:28px;border-radius:8px}
+.home{display:grid;grid-template-columns:250px 1fr;gap:12px;height:100vh;height:100dvh;max-height:640px;max-width:1100px;margin:0 auto;padding:12px max(12px,env(safe-area-inset-right)) 12px 0}
+.home-l{background:var(--panel);border-right:1px solid var(--line);margin:-12px 0;padding:18px 18px 14px max(18px,env(safe-area-inset-left));display:flex;flex-direction:column;gap:11px;min-height:0;overflow:auto}
+.home-l .logo{font-size:40px;margin:0}
+.logo-sub{font-size:11.5px;color:var(--muted);margin-top:-6px}
+.home-l .pill{width:max-content;max-width:100%;font-size:12.5px;padding:5px 11px;text-align:left}
+.today{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--muted)}
+.today>div{display:flex;align-items:center;gap:10px}
+.today b{display:block;font-size:15px;color:var(--text)}
+.cta{margin-top:auto;font-weight:600;font-size:13.5px;background:var(--rh);color:#1a1206;border:0;border-radius:12px;padding:11px 14px;text-align:left}
+.lnk{background:none;border:0;padding:0;font-size:12px;color:var(--muted);text-decoration:underline dotted;text-underline-offset:3px;text-align:left;width:max-content}
+.home-g{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:10px;min-height:0}
+.hcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;overflow:auto;scrollbar-width:thin}
+.hcard.hl{border-color:rgba(201,168,76,.7)}
+.hcard h3{margin:0;font-size:14.5px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hcard h3 span{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap}
+.hcard .v{flex:1;display:flex;align-items:center;min-height:0}
+.hcard .ft{font-size:11.5px;color:var(--muted)}
+.mkeys{background:none;border:0;padding:0;width:100%;display:flex;justify-content:center}
+.mkeys svg{height:clamp(44px,14vh,84px);max-width:100%;display:block}
+.hfoot{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.schips{display:flex;gap:6px;flex-wrap:wrap}
+.schips button{font-size:12px;font-weight:600;background:var(--chip);border:0;border-radius:8px;padding:4px 8px}
+.schips button.ok{color:var(--ok)}
+.prog{display:grid;gap:2px;width:100%;font-size:12.5px;align-content:start}
+.prow{display:grid;grid-template-columns:1fr auto auto;gap:3px 8px;align-items:center;padding:3px 0;width:100%;border-radius:6px;cursor:pointer}
+.prow span{color:var(--muted);font-size:12px}
+.prow i{grid-column:1/-1;height:5px;border-radius:3px;background:var(--chip);overflow:hidden;display:block}
+.prow i b{display:block;height:100%;background:var(--rh)}
+.prow .x{background:none;border:0;color:var(--muted);font-size:14px;padding:0 2px}
+.hset{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;align-items:center;font-size:12.5px}
+.hset>span{color:var(--muted)}
+.hset select{padding:3px 6px;font-size:12.5px;min-width:0}
+.hset .chk{font-size:12.5px;white-space:nowrap}
+@media (max-width:700px),(max-height:300px){
+  .home{grid-template-columns:1fr;height:auto;max-height:none;padding:0 0 24px}
+  .home-l{margin:0;border-right:0;border-bottom:1px solid var(--line);padding-top:calc(14px + env(safe-area-inset-top))}
+  .home-g{grid-template-columns:1fr;grid-template-rows:none;padding:0 12px}
+  .cta{margin-top:4px}
+}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .btn{background:var(--chip);border:0;border-radius:10px;padding:9px 14px}
 .btn.p{background:var(--rh);color:#1a1206;font-weight:600}
@@ -44,7 +76,7 @@ h2{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu
 .fld>span{font-size:12px;color:var(--muted)}
 select{background:var(--chip);border:1px solid var(--line);border-radius:8px;padding:7px 8px}
 .chk{display:flex;gap:8px;align-items:center;font-size:14px}
-.foot{margin-top:28px;color:var(--muted);font-size:12px}
+.foot{color:var(--muted);font-size:11px}
 ol.help{margin:6px 0;padding-left:20px;color:var(--muted);font-size:13.5px;max-width:72ch}
 ol.help li{margin:3px 0}
 
@@ -101,42 +133,39 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 </head>
 <body>
 
-<div id="v-home" class="page">
-  <div class="hd">
+<div id="v-home" class="home">
+  <aside class="home-l">
     <div class="logo">Legato</div>
-    <button class="pill" id="pill" type="button"><i></i><span>Recherche du piano…</span></button>
-    <button class="btn" type="button" data-go="diag">Diagnostic MIDI</button>
-  </div>
-  <p class="txt">Branche le piano en USB, choisis un morceau, et joue sur ton clavier. Sans piano, le clavier à l'écran et celui de l'ordinateur marchent aussi (rangée A S D F… = Do Ré Mi Fa…).</p>
-  <h2>Morceaux</h2><div class="grid" id="g-pieces"></div>
-  <h2>Gammes · doigtés</h2><div class="grid" id="g-scales"></div>
-  <h2>Mes fichiers</h2>
-  <div class="grid" id="g-imports"></div>
-  <div class="row" style="margin-top:10px">
-    <label class="btn" for="f-imp" style="cursor:pointer">Importer un fichier MIDI</label>
-    <input type="file" id="f-imp" accept=".mid,.midi,audio/midi,audio/x-midi" hidden>
-    <span class="txt" id="imp-msg"></span>
-  </div>
-  <p class="txt">Le fichier reste sur cet appareil. Main droite et main gauche sont déduites des pistes, sinon du registre. Pas encore de doigtés pour un fichier importé.</p>
-  <h2>Réglages</h2>
-  <div class="set">
-    <label class="fld" for="s-acc"><span>L'autre main est jouée par</span>
-      <select id="s-acc"><option value="piano">le piano (sortie MIDI)</option><option value="phone">le téléphone</option><option value="off">personne</option></select></label>
-    <label class="fld" for="s-fing"><span>Doigtés</span>
-      <select id="s-fing"><option value="all">toujours affichés</option><option value="changes">aux changements de position</option><option value="off">masqués</option></select></label>
-    <label class="fld" for="s-view"><span>Vue de jeu</span>
-      <select id="s-view"><option value="fall">les notes qui tombent</option><option value="score">la partition qui défile</option></select></label>
-    <div class="fld"><span>Affichage et son</span><label class="chk" for="s-hands"><input type="checkbox" id="s-hands"> Mains dessinées (notes qui tombent)</label>
-      <label class="chk" for="s-metro"><input type="checkbox" id="s-metro"> Métronome</label></div>
-  </div>
-  <h2>Brancher le P-145</h2>
-  <ol class="help">
-    <li>Câble USB-C (téléphone) vers USB-B (piano, prise USB TO HOST), un câble de données, pas seulement de charge.</li>
-    <li>Ouvre Legato dans Chrome et accepte l'accès aux appareils MIDI.</li>
-    <li>Si Android demande l'usage de l'USB, choisis « MIDI ».</li>
-    <li>La pastille passe au vert. Sinon, ouvre le diagnostic.</li>
-  </ol>
-  <div class="foot" id="foot"></div>
+    <div class="logo-sub">lecture, doigtés, répertoire</div>
+    <button class="pill" id="pill" type="button" title="Diagnostic MIDI"><i></i><span>Recherche du piano…</span></button>
+    <div class="today">
+      <div><svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="var(--chip)" stroke-width="5"/><circle id="h-ring" cx="23" cy="23" r="19" fill="none" stroke="var(--rh)" stroke-width="5" stroke-linecap="round" stroke-dasharray="0 119.4" transform="rotate(-90 23 23)"/></svg>
+        <span><b id="h-min">0 / 20 min</b>aujourd'hui</span></div>
+      <span><b id="h-streak">0 jour</b>d'affilée</span>
+    </div>
+    <button class="cta" id="h-cta" type="button"></button>
+    <button class="lnk" type="button" data-go="diag">Brancher le piano · diagnostic MIDI</button>
+    <div class="foot" id="foot"></div>
+  </aside>
+  <main class="home-g">
+    <section class="hcard hl"><h3>Doigtés <span id="h-scales-n"></span></h3>
+      <div class="v"><button class="mkeys" type="button" id="h-mkeys"></button></div>
+      <div class="hfoot"><div class="schips" id="g-scales"></div><span class="ft" id="h-next"></span></div></section>
+    <section class="hcard"><h3>Répertoire <span id="h-pieces-n"></span></h3>
+      <div class="prog" id="g-pieces"></div></section>
+    <section class="hcard"><h3>Mes fichiers <span>restent sur l'appareil</span></h3>
+      <div class="prog" id="g-imports"></div>
+      <div class="row" style="gap:8px"><label class="btn" for="f-imp" style="cursor:pointer;padding:6px 11px;font-size:12.5px">Importer un MIDI</label><span class="ft" id="imp-msg"></span></div>
+      <input type="file" id="f-imp" accept=".mid,.midi,audio/midi,audio/x-midi" hidden></section>
+    <section class="hcard"><h3>Réglages</h3>
+      <div class="hset">
+        <span>Autre main</span><select id="s-acc" aria-label="L'autre main est jouée par"><option value="piano">au piano</option><option value="phone">au téléphone</option><option value="off">muette</option></select>
+        <span>Doigtés</span><select id="s-fing" aria-label="Doigtés"><option value="all">affichés</option><option value="changes">changements de position</option><option value="off">masqués</option></select>
+        <span>Vue</span><select id="s-view" aria-label="Vue de jeu"><option value="fall">notes qui tombent</option><option value="score">partition</option></select>
+        <label class="chk" for="s-metro"><input type="checkbox" id="s-metro"> Métronome</label>
+        <label class="chk" for="s-hands"><input type="checkbox" id="s-hands"> Mains dessinées</label>
+      </div></section>
+  </main>
 </div>
 
 <div id="v-diag" class="page" hidden>
@@ -147,6 +176,13 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
       <p class="txt" id="d-sendmsg"></p></div>
     <div class="box"><h3>Dernière note</h3><div><span class="big" id="d-note">-</span> <span class="txt" id="d-midi"></span></div>
       <div class="vel"><b id="d-vel"></b></div><p class="txt">vélocité <span id="d-velv">-</span> / 127 · pédale <b id="d-ped">relevée</b></p></div>
+    <div class="box" style="grid-column:1/-1"><h3>Brancher le P-145</h3>
+      <ol class="help">
+        <li>Câble USB-C (téléphone) vers USB-B (piano, prise USB TO HOST), un câble de données, pas seulement de charge.</li>
+        <li>Ouvre Legato dans Chrome et accepte l'accès aux appareils MIDI.</li>
+        <li>Si Android demande l'usage de l'USB, choisis « MIDI ».</li>
+        <li>La pastille passe au vert. Sans piano, le clavier à l'écran et celui de l'ordinateur marchent aussi (rangée A S D F… = Do Ré Mi Fa…).</li>
+      </ol></div>
     <div class="box" style="grid-column:1/-1"><h3>Messages reçus</h3><pre class="log" id="d-log"></pre><canvas id="dkeys"></canvas></div>
   </div>
 </div>
@@ -192,7 +228,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '2', APP_DATE = '6 novembre 2026';
+const APP_VERSION = '3', APP_DATE = '6 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -900,7 +936,7 @@ const VIEWS = {
   score: ['Vue : partition qui défile', '<svg viewBox="0 0 24 24"><path d="M2 8h20M2 12h20M2 16h20"/><ellipse cx="8.6" cy="16" rx="2.9" ry="2.1" transform="rotate(-22 8.6 16)" style="fill:currentColor;stroke:none"/><path d="M11.2 15.3V3.8"/></svg>'] };
 let lastFrame = performance.now(), wakeLock = null, toastT = 0;
 function openPiece(pc) {
-  build(pc); ac();
+  build(pc); ac(); LS.set('last', pc.id);
   P = new Player(pc); setRangeKeys(pc.notes);
   $('#p-title').textContent = pc.title; $('#p-src').textContent = pc.src || '';
   const opts = Array.from({ length: pc.measures }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
@@ -954,6 +990,7 @@ function frame(now) {
   const gap = (now - lastFrame) / 1000, dt = gap > 0.25 ? 0 : gap; lastFrame = now;
   if (view === 'play' && P) {
     P.step(dt); metroRun(); draw();
+    if (P.running && !P.done && P.mode !== 'demo') addPractice(dt);
     const w = $('#p-wait');
     w.hidden = !P.wait || SET.view === 'score'; if (!w.hidden) w.textContent = 'Joue ' + [...new Set(P.wait.grp.map(n => n.fr))].join(' + ');
     const c = $('#p-count'), left = P.t0 - P.t;
@@ -989,15 +1026,59 @@ function diagNote(m, vel) {
 
 /* ---------- accueil ---------- */
 function imports() { return LS.get('imports', []); }
-function card(pc, del) {
+// temps joué par jour (hors démo), pour l'anneau du jour et la série
+const GOAL_MIN = 20, dayKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const practice = LS.get('practice', {}); let practiceUnsaved = 0;
+function addPractice(sec) {
+  const k = dayKey(new Date()); practice[k] = (practice[k] || 0) + sec; practiceUnsaved += sec;
+  if (practiceUnsaved > 5) savePractice();
+}
+function savePractice() { practiceUnsaved = 0; LS.set('practice', practice); }
+function streak() {
+  const d = new Date(); let n = 0;
+  if (!(practice[dayKey(d)] >= 60)) d.setDate(d.getDate() - 1);
+  while (practice[dayKey(d)] >= 60) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+const shortScale = pc => pc.title.replace('Gamme de ', '').replace(' majeur', '');
+// mini clavier de la gamme : la montée main droite, doigts en pastilles
+function miniKeys(pc) {
+  const up = build(pc).notes.filter(n => n.hand === 'R').slice(0, 8);
+  let lo = up[0].midi - 1, hi = up[up.length - 1].midi + 1;
+  while (isBlack(lo)) lo--; while (isBlack(hi)) hi++;
+  const whites = [], pos = {}, f = {};
+  for (let m = lo; m <= hi; m++) if (!isBlack(m)) whites.push(m);
+  up.forEach(n => { f[n.midi] = n.f; });
+  let w = '', b = '', dots = '';
+  whites.forEach((m, i) => { pos[m] = i * 20; w += `<rect x="${i * 20 + .5}" y="0" width="19" height="56" rx="2.5" fill="#f0e8d8"/>`; });
+  for (let m = lo; m <= hi; m++) if (isBlack(m) && pos[m - 1] !== undefined) { pos[m] = pos[m - 1] + 14; b += `<rect x="${pos[m]}" y="0" width="12" height="34" rx="2" fill="#050607"/>`; }
+  for (const m in f) {
+    const cx = pos[m] + (isBlack(+m) ? 6 : 10), cy = isBlack(+m) ? 26 : 46;
+    dots += `<circle cx="${cx}" cy="${cy}" r="6.5" fill="#c9a84c" stroke="#0b0d0f" stroke-width="1"/><text x="${cx}" y="${cy + 3.2}" font-size="9" font-weight="700" text-anchor="middle" fill="#10131a">${f[m]}</text>`;
+  }
+  return `<svg viewBox="0 0 ${whites.length * 20} 58" role="img" aria-label="Doigtés de la gamme de ${esc(shortScale(pc))} majeur">${w}${b}${dots}</svg>`;
+}
+function progRow(pc, del) {
   const best = LS.get('best-' + pc.id, 0);
-  return `<button class="card" type="button" data-id="${esc(pc.id)}"><b>${esc(pc.title)}</b><small>${esc(pc.sub)}</small>${best ? `<span class="best">Meilleur : ${best} %</span>` : ''}${del ? `<span class="x" data-del="${esc(pc.id)}" role="button" aria-label="Supprimer">✕</span>` : ''}</button>`;
+  return `<div class="prow" role="button" tabindex="0" data-open="${esc(pc.id)}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pc.title)}<span> · ${esc(pc.sub)}</span></b>`
+    + `<span>${best ? best + ' %' : 'à jouer'}</span>${del ? `<button class="x" type="button" data-del="${esc(pc.id)}" aria-label="Supprimer ${esc(pc.title)}">✕</button>` : '<span></span>'}<i><b style="width:${best}%"></b></i></div>`;
 }
 function renderHome() {
-  $('#g-pieces').innerHTML = PIECES.map(p => card(p)).join('');
-  $('#g-scales').innerHTML = SCALES.map(p => card(p)).join('');
+  const done = SCALES.filter(p => LS.get('best-' + p.id, 0) >= 90), next = SCALES.find(p => LS.get('best-' + p.id, 0) < 90) || SCALES[0];
+  $('#h-scales-n').textContent = 'gammes réussies ' + done.length + ' / ' + SCALES.length;
+  $('#h-mkeys').innerHTML = miniKeys(next); $('#h-mkeys').dataset.open = next.id;
+  $('#g-scales').innerHTML = SCALES.map(p => `<button type="button" data-open="${esc(p.id)}" class="${done.includes(p) ? 'ok' : ''}">${done.includes(p) ? '✓ ' : ''}${esc(shortScale(p))}</button>`).join('');
+  $('#h-next').textContent = done.length === SCALES.length ? 'Toutes réussies' : 'Prochaine : ' + shortScale(next) + ' majeur';
+  $('#h-pieces-n').textContent = PIECES.length + ' pièces · domaine public';
+  $('#g-pieces').innerHTML = PIECES.map(p => progRow(p)).join('');
   const im = imports();
-  $('#g-imports').innerHTML = im.length ? im.map(p => card(p, true)).join('') : '<p class="txt">Aucun fichier pour l\'instant.</p>';
+  $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI importé garde son tempo, sa mesure et son armure ; pas encore de doigtés.</p>';
+  const min = Math.floor((practice[dayKey(new Date())] || 0) / 60), st = streak();
+  $('#h-min').textContent = min + ' / ' + GOAL_MIN + ' min';
+  $('#h-ring').setAttribute('stroke-dasharray', (Math.min(1, min / GOAL_MIN) * 119.4).toFixed(1) + ' 119.4'); $('#h-ring').style.opacity = min ? 1 : 0;
+  $('#h-streak').textContent = st + (st > 1 ? ' jours' : ' jour');
+  const last = findPiece(LS.get('last', '')), pc = last || PIECES[0];
+  $('#h-cta').textContent = (last ? 'Reprendre · ' : 'Commencer · ') + pc.title; $('#h-cta').dataset.open = pc.id;
   $('#s-acc').value = SET.accomp; $('#s-fing').value = SET.fing; $('#s-hands').checked = SET.hands; $('#s-view').value = SET.view; $('#s-metro').checked = SET.metro;
 }
 function findPiece(id) { return PIECES.concat(SCALES, imports()).find(p => p.id === id); }
@@ -1007,7 +1088,7 @@ function show(v) {
   view = v;
   $('#v-home').hidden = v !== 'home'; $('#v-diag').hidden = v !== 'diag'; $('#v-play').hidden = v !== 'play';
   if (v !== 'play' && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
-  if (v === 'home') renderHome();
+  if (v === 'home') { savePractice(); renderHome(); }
   if (v === 'diag') renderDiag();
   window.scrollTo(0, 0);
 }
@@ -1015,8 +1096,9 @@ document.addEventListener('click', e => {
   const go = e.target.closest('[data-go]'); if (go) { show(go.dataset.go); return; }
   const del = e.target.closest('[data-del]');
   if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); renderHome(); return; }
-  const c = e.target.closest('.card[data-id]'); if (c) openPiece(findPiece(c.dataset.id));
+  const o = e.target.closest('[data-open]'); if (o && findPiece(o.dataset.open)) openPiece(findPiece(o.dataset.open));
 });
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open]')) { e.preventDefault(); e.target.click(); } });
 $('#pill').onclick = () => show('diag');
 $('#f-imp').onchange = async e => {
   const f = e.target.files[0]; if (!f) return; const msg = $('#imp-msg');
