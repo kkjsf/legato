@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v7 en ligne et vérifiée (2026-11-09, `36971fe` : worker `v=7`, cache `legato-v7`, 63 / 63 en ligne)** ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v8 en ligne (2026-11-09)** ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,16 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v8 (2026-11-09) : doigtés de la Sarabande revus
+
+Relecture du doigté calculé de la Sarabande (fichier perso), mesure par mesure. Trois règles en plus :
+**un même accord garde le même doigté partout** (le plus fréquent, à égalité celui d'usage : La-Ré-Fa
+de la mes. 9 en 1-3-5 comme la mes. 1) et un accord répété ne change pas de doigts (mes. 8) ;
+**pas de passage du pouce dans une broderie** (la ligne repart aussitôt, sans venir d'un trait par degrés
+conjoints : +2) ; passer le 2 par-dessus le pouce coûte 4,5. MG mes. 2 et 10 : La 2, Si♭ 1, La 2, Sol 4 (était
+1-2-3-4 avec un croisement). Reste discutable : mes. 14, Ré 4 puis Do♯ 2 (serré, jouable). Gammes inchangées
+(22 / 24 et 17 / 24). Tests : 65.
 
 ### v7 (2026-11-09) : doigtés calculés vérifiés sur les 12 gammes majeures
 

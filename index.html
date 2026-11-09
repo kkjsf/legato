@@ -243,7 +243,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '7', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '8', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -390,7 +390,7 @@ function build(pc) {
    La main gauche est traitée comme une main droite en miroir (hauteur q = -midi) : mêmes règles, pouce du côté aigu. */
 // écart confortable / possible en demi-tons entre deux doigts, du grave (premier doigt) vers l'aigu
 const SPAN = { 12: [5, 8], 13: [7, 10], 14: [9, 11], 15: [10, 12], 23: [3, 5], 24: [5, 7], 25: [7, 9], 34: [2, 4], 35: [4, 6], 45: [2, 4] };
-const CROSS = { 2: [3.5, 2], 3: [3, 4], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher
+const CROSS = { 2: [4.5, 2], 3: [3, 4], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher
 // coût d'aller de la note a (doigt fa) à la note b (doigt fb) ; kind 1 = la main se déplace (changement de position)
 function fingStep(a, fa, b, fb) {
   const d = b.q - a.q, D = Math.abs(d);
@@ -406,7 +406,8 @@ function fingStep(a, fa, b, fb) {
   if (hi === 1 && lo <= 4) {
     // passage du pouce : plus facile sur un demi-ton, et d'une touche noire vers une blanche (Si♭ au 4, puis Do au pouce)
     const long = d > 0 ? a : b, thumb = d > 0 ? b : a;
-    return [CROSS[lo][0] + (D - 1) * 0.3 + Math.max(0, D - CROSS[lo][1]) * 1.5 - (long.black && !thumb.black ? 1.5 : 0), 1];
+    // dans une broderie (la ligne repart aussitôt dans l'autre sens), on reste en position plutôt que de passer le pouce
+    return [CROSS[lo][0] + (D - 1) * 0.3 + Math.max(0, D - CROSS[lo][1]) * 1.5 - (long.black && !thumb.black ? 1.5 : 0) + (b.turn ? 2 : 0), 1];
   }
   return [20 + D, 1];
 }
@@ -439,6 +440,7 @@ function fingCands(ns) {
 // un déplacement coûte moitié moins pendant un silence
 function fingTrans(A, ca, B, cb) {
   const a = A.ns.length - 1, b = B.ns.length - 1, slow = B.on - A.end >= 0.25 ? 0.5 : 1;
+  if ((a || b) && a === b && A.ns.every((n, k) => n.q === B.ns[k].q) && ca.f.join() !== cb.f.join()) return [4, 1]; // accord répété : mêmes doigts
   const x = fingStep(A.ns[0], ca.f[0], B.ns[0], cb.f[0]), y = a || b ? fingStep(A.ns[a], ca.f[a], B.ns[b], cb.f[b]) : x;
   // accord : si une extrémité reste en place, l'autre s'écarte ou se resserre sans que la main change de position
   if ((a || b) && (!x[0] && !x[1] || !y[0] && !y[1])) return [Math.min(2, x[0] + y[0]), 0];
@@ -454,6 +456,11 @@ function autoFinger(notes) {
     }
     if (!evs.length) continue;
     for (const e of evs) { e.ns.sort((a, b) => a.q - b.q); e.end = Math.max(...e.ns.map(x => x.n.on + x.n.dur)); e.cands = fingCands(e.ns); }
+    evs.forEach((e, i) => { // broderie : la ligne repart aussitôt dans l'autre sens, sans venir d'un trait par degrés conjoints
+      const p = evs[i - 1], n = evs[i + 1], pp = evs[i - 2]; if (!p || !n || e.ns.length > 1) return;
+      const d1 = e.ns[0].q - p.ns[0].q, run = pp && Math.abs(p.ns[0].q - pp.ns[0].q) <= 2 && Math.sign(p.ns[0].q - pp.ns[0].q) === Math.sign(d1);
+      e.ns[0].turn = d1 * (n.ns[0].q - e.ns[0].q) < 0 && !run;
+    });
     // extrémités : un trait commence par le doigt du bout (le pouce s'il monte, le 5 s'il descend, dans le repère de la main)
     // et finit de même ; puis le premier et le dernier doigt reprennent celui de la même note ailleurs dans le passage
     const ends = {};
@@ -461,7 +468,8 @@ function autoFinger(notes) {
       const o = evs[i ? i - 1 : 1];
       if (evs[i].ns.length === 1 && o) ends[i] = { pos: o.ns[0].q > evs[i].ns[0].q ? 1 : o.ns[0].q < evs[i].ns[0].q ? 5 : 0 };
     }
-    const endCost = (i, c) => !ends[i] ? 0 : (ends[i].pos ? 0.4 * Math.abs(c.f[0] - ends[i].pos) : 0) + (ends[i].same && c.f[0] !== ends[i].same ? 1 : 0);
+    const endCost = (i, c) => (evs[i].usual && c.f.join() !== evs[i].usual ? 1 : 0)
+      + (!ends[i] ? 0 : (ends[i].pos ? 0.4 * Math.abs(c.f[0] - ends[i].pos) : 0) + (ends[i].same && c.f[0] !== ends[i].same ? 1 : 0));
     const solve = () => {
       const tbl = [evs[0].cands.map(c => ({ cost: c.cost + endCost(0, c), back: -1 }))];
       for (let i = 1; i < evs.length; i++) {
@@ -481,6 +489,13 @@ function autoFinger(notes) {
       const pcl = evs[i].ns[0].n.midi % 12; let near = null;
       evs.forEach((e, k) => { if (k !== +i && e.ns.length === 1 && e.ns[0].n.midi % 12 === pcl && Math.abs(k - i) <= 16 && (near === null || Math.abs(k - i) < Math.abs(near - i))) near = k; });
       if (near !== null) ends[i].same = evs[near].pick.f[0];
+    }
+    // un même accord garde le même doigté partout (le plus fréquent, à égalité celui d'usage)
+    const seen = {}, key = e => e.ns.map(x => x.n.midi).join();
+    for (const e of evs) if (e.ns.length > 1) { const k = key(e), f = e.pick.f.join(); (seen[k] = seen[k] || {})[f] = (seen[k][f] || 0) + 1; }
+    for (const e of evs) if (e.ns.length > 1 && Object.keys(seen[key(e)]).length > 1) {
+      const tpl = chordTpl(e.ns.map(x => x.q)).join();
+      e.usual = Object.entries(seen[key(e)]).sort((a, b) => b[1] - a[1] || (b[0] === tpl) - (a[0] === tpl))[0][0];
     }
     solve();
     evs.forEach((e, i) => {

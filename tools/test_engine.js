@@ -205,6 +205,10 @@ export async function run() {
     const flats = ['Si♭', 'Mi♭', 'La♭', 'Ré♭'].flatMap(n => [n + ' MD', n + ' MG']);
     ok('doigtés calculés, deux octaves : gammes à bémols justes aux deux mains, MD juste sauf Fa♯', flats.every(k => !two[k]) && bad(two).filter(k => k.endsWith('MD')).join() === 'Fa♯ MD',
       `${24 - bad(two).length} / 24 · à part : ` + bad(two).join(', '));
+    const brod = build({ id: 'test-brod', title: '', sub: '', bpm: 80, num: 6, hands: 'B', pct: 100, src: '', key: -1,
+      data: [[50, 0, 3, 0], [38, 3, 3, 0], [45, 6, 1.5, 0], [46, 7.5, 1.5, 0], [45, 9, 1.5, 0], [43, 10.5, 1.5, 0], [57, 0, 2, 1], [62, 0, 2, 1], [65, 0, 2, 1], [57, 6, 2, 1], [61, 6, 2, 1], [64, 6, 2, 1], [57, 12, 2, 1], [62, 12, 2, 1], [65, 12, 2, 1]] });
+    const bf = brod.notes.filter(n => n.hand === 'L').map(n => n.f).join(''), cfg = on => brod.notes.filter(n => n.hand === 'R' && n.on === on).map(n => n.f).join('');
+    ok('doigtés calculés : broderie MG La-Si♭-La en 2-1-2 (Sarabande mes. 2), accord repris avec les mêmes doigts', bf.slice(2, 5) === '212' && cfg(0) === cfg(12), `MG ${bf} · La-Ré-Fa ${cfg(0)} puis ${cfg(12)}`);
     const doScale = build(asImport(SCALES[0], 'test-do'));
     ok('doigtés calculés : passages du pouce marqués comme changements de position', doScale.notes.filter(n => n.hand === 'R' && n.ch).length >= 3);
     const chords = build({ id: 'test-ch', title: '', sub: '', bpm: 90, num: 4, hands: 'B', pct: 100, src: '', key: 0,
