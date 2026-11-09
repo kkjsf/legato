@@ -93,13 +93,14 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 /* jeu */
 #v-play{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
-.tb{flex:none;height:48px;display:flex;align-items:center;gap:6px;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tb{flex:none;height:48px;display:flex;align-items:center;gap:4px;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
 .ib{background:none;border:0;min-width:38px;height:38px;border-radius:10px;font-size:19px;color:var(--text);flex:none}
 .ib:hover{background:var(--chip)}
 .ib svg{width:22px;height:22px;display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .ib.on{color:var(--rh);background:var(--chip)}
+.ib .slash{display:none}.ib.on .slash{display:inline}
 .seg.off{opacity:.4;pointer-events:none}
-.tt{display:flex;flex-direction:column;line-height:1.15;margin-right:auto;min-width:80px;overflow:hidden}
+.tt{display:flex;flex-direction:column;line-height:1.15;margin-right:auto;min-width:64px;overflow:hidden}
 .tt b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px}
 .tt small{color:var(--muted);font-size:11px;white-space:nowrap}
 .seg{display:inline-flex;background:var(--chip);border-radius:15px;padding:2px;flex:none}
@@ -196,6 +197,8 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
     <button class="chip" type="button" id="p-mode" title="Mode : attente, tempo ou démo"></button>
     <button class="chip" type="button" id="p-fing"></button>
     <button class="ib" type="button" id="p-view" aria-label="Vue"></button>
+    <button class="ib" type="button" id="p-kbd" aria-label="Clavier"></button>
+    <button class="ib" type="button" id="p-sound" aria-label="Son de l'appli"></button>
     <button class="ib" type="button" id="p-metro" aria-label="Métronome" title="Métronome"><svg viewBox="0 0 24 24"><path d="M9 3h6l4 18H5z"/><path d="M5.9 17h12.2M12 17l5-10"/></svg></button>
     <button class="ib" type="button" id="p-play" aria-label="Lecture">⏸</button>
     <button class="ib" type="button" id="p-restart" aria-label="Recommencer">⟲</button>
@@ -228,13 +231,13 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '4', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '5', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('legato-' + k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
-const SET = Object.assign({ fing: 'all', hands: true, accomp: 'piano', view: 'fall', metro: false }, LS.get('set', {}));
+const SET = Object.assign({ fing: 'all', hands: true, accomp: 'piano', view: 'fall', metro: false, sound: 'other', kbd: true }, LS.get('set', {}));
 const saveSet = () => LS.set('set', SET);
 
 /* ---------- notes ---------- */
@@ -517,7 +520,7 @@ function synth(m, dur, vel, delay) {
   o1.start(t); o2.start(t); o1.stop(end + 0.05); o2.stop(end + 0.05);
 }
 function accompany(m, durSec, delay) {
-  if (SET.accomp === 'off') return;
+  if (SET.accomp === 'off' || SET.sound === 'off') return;
   if (SET.accomp === 'piano' && MIDI.outs.length) send(m, 58, durSec * 1000, delay * 1000);
   else synth(m, durSec, 70, delay);
 }
@@ -626,7 +629,7 @@ class Player {
   setRange(a, b) { this.m0 = a; this.m1 = b; this.t0 = (a - 1) * this.pc.num; this.t1 = b * this.pc.num; this.reset(); }
   reset() {
     this.wait = null; this.flashes = []; this.done = false; this.extra = 0;
-    for (const n of this.notes) { n.st = n.on >= this.t0 - 1e-6 && n.on < this.t1 - 1e-6 ? 'pend' : 'out'; n.pre = false; n.dt = null; n.vel = 0; }
+    for (const n of this.notes) { n.st = n.on >= this.t0 - 1e-6 && n.on < this.t1 - 1e-6 ? 'pend' : 'out'; n.pre = false; n.dt = null; n.vel = 0; n.guided = false; }
     // tempo : 0,3 s de silence avant le décompte, pour que le 1er clic soit programmé à l'avance comme les autres
     if (this.mode === 'tempo') { this.t = this.t0 - this.pc.num - 0.3 * this.bpm / 60; this.running = false; }
     else { this.t = this.t0 - (this.mode === 'demo' ? 0.5 : 1); this.running = true; }
@@ -645,18 +648,23 @@ class Player {
         this.t = on;
         const grp = this.notes.filter(n => n.st === 'pend' && this.req(n) && n.on <= on + 0.06);
         this.wait = { on, grp, pressed: new Set(grp.filter(n => n.pre).map(n => n.midi)), miss: false };
+        for (const n of grp) this.guide(n, 0);
         if (grp.every(n => this.wait.pressed.has(n.midi))) this.finish();
         return;
       }
       for (const n of due) this.auto(n);
     } else {
       for (const n of this.notes) if (n.st === 'pend' && !this.req(n) && n.on <= nt + AHEAD / spb) this.auto(n, Math.max(0, (n.on - nt) * spb));
+      for (const n of this.notes) if (n.st === 'pend' && this.req(n) && n.on <= nt + AHEAD / spb) this.guide(n, Math.max(0, (n.on - nt) * spb));
       const late = LATE / spb;
       for (const n of this.notes) if (n.st === 'pend' && this.req(n) && nt > n.on + late) n.st = 'miss';
     }
     this.t = nt;
     if (this.t >= this.t1 + 0.3 && !this.notes.some(n => n.st === 'pend')) this.end();
   }
+  // son « tout » : l'appli joue aussi les notes de l'élève, toujours sur le téléphone (envoyées au piano, elles
+  // retrigeraient sa touche et la garde anti-écho avalerait son vrai appui)
+  guide(n, delay) { if (SET.sound !== 'all' || n.guided) return; n.guided = true; synth(n.midi, n.dur * 60 / this.bpm, 64, delay); }
   auto(n, delay = 0) { n.st = 'auto'; const sec = n.dur * 60 / this.bpm; if (this.mode === 'demo') demoNote(n, sec, delay); else accompany(n.midi, sec, delay); }
   finish() {
     const w = this.wait; this.wait = null;
@@ -715,7 +723,7 @@ function layout() {
   const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
   KB.W = r.width; KB.H = r.height; cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  KB.kh = Math.max(70, Math.min(150, r.height * 0.28)); KB.hitY = r.height - KB.kh;
+  KB.kh = SET.view === 'score' && !SET.kbd ? 0 : Math.max(70, Math.min(150, r.height * 0.28)); KB.hitY = r.height - KB.kh;
   KB.whites = []; KB.pos = {};
   for (let m = KB.lo; m <= KB.hi; m++) if (!isBlack(m)) KB.whites.push(m);
   const kw = r.width / KB.whites.length, bw = kw * 0.6;
@@ -786,7 +794,7 @@ function drawFall() {
   ctx.fillStyle = P.wait ? COL.R : 'rgba(236,232,223,.35)';
   if (P.wait) { ctx.shadowColor = COL.R; ctx.shadowBlur = 10; }
   ctx.fillRect(0, hy - 3, W, 3); ctx.shadowBlur = 0;
-  drawKeys(keyStates());
+  if (KB.kh) drawKeys(keyStates());
 }
 function drawKeys(st) {
   const hy = KB.hitY, kh = KB.kh, bh = kh * 0.62;
@@ -854,7 +862,7 @@ function measureClefs() {
 }
 const SC = {};
 function scoreLayout() {
-  const sp = Math.max(6, Math.min(13, Math.floor(KB.hitY / 22)));
+  const sp = Math.max(6, Math.min(KB.kh ? 13 : 17, Math.floor(KB.hitY / 22)));
   SC.sp = sp; SC.tTop = Math.round((KB.hitY - 22 * sp) / 2 + 4.5 * sp); SC.tBot = SC.tTop + 4 * sp; SC.bTop = SC.tBot + 6 * sp; SC.bBot = SC.bTop + 4 * sp;
   SC.keyX = 4.4 * sp; SC.timeX = SC.keyX + Math.abs(P.pc.key) * 1.05 * sp + 1.5 * sp; SC.panel = SC.timeX + 1.5 * sp;
   SC.ph = Math.round(Math.max(SC.panel + 3 * sp, KB.W * 0.24)); SC.ppb = sp * Math.max(6, 2.8 / P.score.minDur);
@@ -986,12 +994,12 @@ function drawScore() {
   for (const top of [SC.tTop, SC.bTop]) { ctx.fillText(String(P.pc.tn || P.pc.num), SC.timeX, top + 1.05 * sp); ctx.fillText(String(P.pc.td || 4), SC.timeX, top + 3.05 * sp); }
   ctx.fillStyle = COL.R; if (P.wait) { ctx.shadowColor = COL.R; ctx.shadowBlur = 10; }
   ctx.fillRect(SC.ph - 1, y0, 2, y1 - y0); ctx.shadowBlur = 0;
-  drawKeys(keyStates());
+  if (KB.kh) drawKeys(keyStates());
 }
 
 /* ---------- écran de jeu ---------- */
 const PCT = [50, 60, 70, 80, 90, 100];
-const FINGL = { all: 'Doigtés : affichés', changes: 'Doigtés : positions', off: 'Doigtés : masqués' };
+const FINGL = { all: 'Doigtés', changes: 'Positions', off: 'Sans doigtés' };
 const MODES = ['wait', 'tempo', 'demo'], MODEL = { wait: 'Attente', tempo: 'Tempo', demo: 'Démo' };
 const VIEWS = {
   fall: ['Vue : notes qui tombent', '<svg viewBox="0 0 24 24"><path d="M6 4v8M12 8v6M18 3v5" style="stroke-width:3.4"/><path d="M3 19.5h18"/></svg>'],
@@ -1017,6 +1025,9 @@ function syncBar() {
   $('#p-fing').textContent = FINGL[SET.fing];
   const v = $('#p-view'); v.innerHTML = VIEWS[SET.view][1]; v.title = VIEWS[SET.view][0] + ' (toucher pour changer)'; v.setAttribute('aria-label', v.title);
   $('#p-metro').classList.toggle('on', SET.metro); $('#p-metro').setAttribute('aria-pressed', SET.metro);
+  const so = $('#p-sound'); so.innerHTML = SOUNDS[SET.sound][1]; so.title = SOUNDS[SET.sound][0] + ' (toucher pour changer)'; so.setAttribute('aria-label', so.title); so.classList.toggle('on', SET.sound === 'all');
+  const kb = $('#p-kbd'); kb.hidden = SET.view !== 'score'; kb.innerHTML = KBD_ICON; kb.classList.toggle('on', !SET.kbd);
+  kb.title = SET.kbd ? 'Masquer le clavier (plus de place pour la partition)' : 'Afficher le clavier'; kb.setAttribute('aria-label', kb.title);
   $('#p-met').checked = SET.metro; $('#p-vw').value = SET.view;
   $('#p-play').textContent = P.running && !P.done ? '⏸' : '▶';
   $('#p-start').hidden = !(P.mode === 'tempo' && !P.running && !P.done);
@@ -1188,8 +1199,15 @@ $('#p-mode').onclick = () => {
   P.mode = MODES[(MODES.indexOf(P.mode) + 1) % MODES.length]; P.save(); restart();
   if (P.mode === 'demo') toast('Démo sur ' + (SET.accomp !== 'phone' && MIDI.outs.length ? 'le piano' : 'le téléphone'));
 };
-const setView = v => { SET.view = v; saveSet(); syncBar(); };
+const setView = v => { SET.view = v; saveSet(); layout(); syncBar(); };
 const setMetro = on => { SET.metro = on; saveSet(); ac(); syncBar(); };
+const SOUNDS = {
+  other: ['Son : l’appli joue l’autre main', '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>'],
+  all: ['Son : l’appli joue toutes les notes, avec ton piano', '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 9.5a3.5 3.5 0 0 1 0 5M19 7a7 7 0 0 1 0 10"/></svg>'],
+  off: ['Son : coupé, tu n’entends que ton piano', '<svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>'] };
+const KBD_ICON = '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="1.5"/><path d="M7.5 6v7M12 6v7M16.5 6v7"/><path d="M3 21l18-18" class="slash"/></svg>';
+$('#p-sound').onclick = () => { const o = ['other', 'all', 'off']; SET.sound = o[(o.indexOf(SET.sound) + 1) % 3]; saveSet(); ac(); syncBar(); toast(SOUNDS[SET.sound][0]); };
+$('#p-kbd').onclick = () => { SET.kbd = !SET.kbd; saveSet(); layout(); syncBar(); };
 $('#p-view').onclick = () => setView(SET.view === 'score' ? 'fall' : 'score');
 $('#p-vw').onchange = e => setView(e.target.value);
 $('#p-metro').onclick = () => setMetro(!SET.metro);

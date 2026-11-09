@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v4 en ligne (2026-11-09)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v5 en ligne (2026-11-09)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,16 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v5 (2026-11-09) : son de l'appli et partition plein écran
+
+- **Bouton son** (haut-parleur, `SET.sound`) : « autre main » (comme avant), « tout » (l'appli joue
+  aussi les notes de l'élève, toujours sur le **téléphone** : envoyées au piano, elles retrigeraient
+  sa touche et la garde anti-écho de 80 ms avalerait son vrai appui) ou « coupé » (on n'entend que
+  le piano). Le métronome garde son propre bouton ; la démo joue toujours.
+- **Masquer le clavier en vue partition** (bouton clavier barré, `SET.kbd`, visible seulement en
+  partition) : la portée prend toute la hauteur, interligne jusqu'à 17 px (13 avec le clavier).
+- Barre compactée pour tenir en 800 px : « Doigtés / Positions / Sans doigtés ». Tests : 46.
 
 ### v4 (2026-11-09) : vrai piano, répertoire étoffé
 

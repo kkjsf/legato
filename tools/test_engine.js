@@ -151,6 +151,18 @@ export async function run() {
     openPiece(pc);
     ok('import : Mi♭ épelé en bémol, sans altération (armure)', P.notes.find(n => n.midi === 75).fr === 'Mi♭' && P.score.units.flatMap(u => u.notes).every(n => n.acc === null));
 
+    // ---------- 6 bis. son de l'appli : tout / coupé ; clavier masqué en partition ----------
+    const outs2 = MIDI.outs; MIDI.outs = outs2;
+    for (const [mode, wantSent, wantSynth] of [['all', 37, 64], ['off', 0, 0]]) {
+      SET.sound = mode; openPiece(menuet); P.hands = 'R'; P.mode = 'tempo'; restart(); P.running = true; sent.length = 0; synthCalls = 0; MIDI.recent = {};
+      let g = 0; while (!P.done && g++ < 50000) P.step(1 / 60);
+      ok('son « ' + mode + ' » : ' + ons().length + ' notes au piano, ' + synthCalls + ' au téléphone', ons().length === wantSent && synthCalls === wantSynth);
+      $('#p-res').hidden = true;
+    }
+    SET.sound = 'other'; SET.view = 'score'; SET.kbd = false; openPiece(menuet);
+    ok('partition sans clavier : toute la hauteur, portées plus grandes', KB.kh === 0 && KB.hitY === KB.H && SC.sp >= 13 && !$('#p-kbd').hidden, `interligne ${SC.sp} px`);
+    SET.kbd = true; layout();
+
     // ---------- 7 bis. répertoire : notes recopiées de Mutopia, mesures entières, doigtés partout ----------
     const count = { 'menuet-sol-mineur': [118, 81], 'schumann-melodie': [118, 185] };
     for (const p of PIECES) {
