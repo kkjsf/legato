@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v9 en ligne (2026-11-09)** ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -34,7 +34,7 @@ Demande de Simon : « se rendre facilement à un endroit de la partition, reveni
   **`skip`** (ni attendues, ni jouées par l'appli, ni comptées dans le bilan, dessinées estompées) ; les
   notes déjà jouées avant `b` gardent leur état. `P.cue` = le temps de départ (remplace `t0` pour le
   décompte et le métronome du décompte). En tempo, une mesure de décompte avant `b` ; en attente et en
-  démo, une demi-temps d'avance.
+  démo, un demi-temps d'avance.
 - **Barre des mesures** (`.nav`, 28 px, sous la barre d'outils) : une case par mesure, numéros 1, 3,
   5... quand elles sont étroites (`navLabels`), mesure en cours remplie au fil des temps (`--p`), cases
   du passage pleines et les autres estompées, trait vert (mesure toute juste) ou rouge (erreur) sous
