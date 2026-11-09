@@ -281,6 +281,84 @@ export async function run() {
     ok('latence : corrigée, « bien en place » et la latence est dite', fixd.acc === 100 && Math.abs(fixd.b) < 8 && /bien en place/.test(fixd.txt) && /latence de \d+ ms déduite/.test(fixd.txt), `${fixd.b.toFixed(1)} ms`);
     $('#p-res').hidden = true; SET.latency = 0; CAL.last = '';
 
+    // ---------- 7 sexies. se déplacer : barre des mesures, ⏮ ⏭, glisser, flèches, mode gardé ----------
+    {
+      SET.view = 'score'; openPiece(menuet); P.hands = 'R'; P.mode = 'wait'; P.pct = 70; P.loop = false; restart(); MIDI.recent = {};
+      const num = P.pc.num, N = P.pc.measures, cells = $('#p-bars').children;
+      ok('navigation : une case par mesure, mesure 1 en cours', cells.length === N && cells[0].classList.contains('cur') && $('#p-pos').textContent === '1 / ' + N);
+      const playGroups = k => { let g = 0, gu = 0; while (!P.done && g < k && gu++ < 20000) { P.step(1 / 60); if (P.wait) { g++; const ms = P.wait.grp.map(n => n.midi); ms.forEach(m => key(m)); ms.forEach(m => rel(m)); MIDI.recent = {}; } } };
+      playGroups(3);
+      goMeasure(5);
+      const before = P.notes.filter(n => P.req(n) && n.on < 4 * num), after = P.notes.filter(n => P.req(n) && n.on >= 4 * num);
+      ok('aller à la mes. 5 : les notes d\'avant non jouées sont sautées, les 3 jouées gardées', before.filter(n => n.st === 'ok').length === 3 && before.every(n => n.st === 'ok' || n.st === 'skip') && after.every(n => n.st === 'pend') && P.cue === 4 * num);
+      draw(); ok('aller à la mes. 5 : case 5 en cours, 1 à 4 sans marque d\'erreur', cells[4].classList.contains('cur') && $('#p-pos').textContent === '5 / ' + N && ![...cells].slice(0, 4).some(c => c.classList.contains('bad')));
+      for (let g = 0; g < 200 && !P.wait; g++) P.step(1 / 60);
+      ok('aller à la mes. 5 : le mode attente attend la 1re note de la mes. 5', P.wait && Math.abs(P.wait.on - 4 * num) < 1e-6);
+      navStep(-1);
+      ok('⏮ au début d\'une mesure : mesure d\'avant (4)', P.cue === 3 * num && P.running);
+      for (let g = 0; g < 200 && !P.wait; g++) P.step(1 / 60);
+      const ms0 = P.wait.grp.map(n => n.midi); ms0.forEach(m => key(m)); ms0.forEach(m => rel(m)); MIDI.recent = {};
+      for (let g = 0; g < 200 && !P.wait; g++) P.step(1 / 60);
+      const inside = P.t - 3 * num;
+      navStep(-1);
+      ok('⏮ au milieu d\'une mesure : retour à son début (4), la note jouée est à rejouer', inside > 0.5 && P.cue === 3 * num && P.notes.filter(n => P.req(n) && n.on >= 3 * num).every(n => n.st === 'pend'), `on était ${inside.toFixed(2)} temps dans la mes.`);
+      navStep(1); navStep(1);
+      ok('⏭ deux fois : mes. 6', P.cue === 5 * num);
+      document.dispatchEvent(new KeyboardEvent('keydown', { code: 'ArrowLeft', bubbles: true }));
+      ok('flèche ← : mes. 5', P.cue === 4 * num);
+      playGroups(1000);
+      const rr = P.result(), want = P.notes.filter(n => P.req(n) && n.on >= 4 * num).length + 3;
+      ok('bilan après un saut : les notes sautées ne comptent pas', P.done && rr.tot === want && rr.acc === 100, `${rr.ok}/${rr.tot}`);
+      // barre des mesures : toucher, glisser
+
+      const pe = (type, m, id = 41) => { const b = $('#p-bars').getBoundingClientRect(); $('#p-bars').dispatchEvent(new PointerEvent(type, { clientX: b.left + (m - 0.5) * b.width / N, clientY: b.top + b.height / 2, pointerId: id, bubbles: true })); };
+      pe('pointerdown', 9); pe('pointerup', 9);
+      ok('barre : toucher la mes. 9 après le bilan relance l\'attente à la mes. 9', !P.done && P.running && P.cue === 8 * num && $('#p-res').hidden);
+      pe('pointerdown', 3); pe('pointermove', 4); pe('pointermove', 6); pe('pointerup', 6);
+      ok('barre : glisser de 3 à 6 boucle mes. 3-6', P.loop && P.m0 === 3 && P.m1 === 6 && P.cue === 2 * num && !$('#p-rng').hidden && /⟳ mes\. 3-6/.test($('#p-rng').textContent) && $('#p-loop').checked && $('#p-m0').value === '3' && $('#p-m1').value === '6');
+      ok('barre : cases 3 à 6 dans le passage, les autres estompées', [...cells].every((c, i) => c.classList.contains('in') === (i >= 2 && i <= 5)));
+      navStep(-1); navStep(-1);
+      ok('⏮ ne sort pas du passage bouclé', P.cue === 2 * num && P.m0 === 3);
+      pe('pointerdown', 12); pe('pointerup', 12);
+      ok('barre : une mesure hors du passage rend le morceau entier', !P.loop && P.m0 === 1 && P.m1 === N && P.cue === 11 * num && $('#p-rng').hidden);
+      pe('pointerdown', 2); pe('pointermove', 5); pe('pointerup', 5); $('#p-rng').click();
+      ok('pastille « mes. 2-5 ✕ » : retour au morceau entier', !P.loop && P.m0 === 1 && P.m1 === N);
+      // mode tempo : décompte d'une mesure avant le point d'arrivée
+      P.mode = 'tempo'; restart(); P.running = true; METRO.log.length = 0;
+      for (let g = 0; g < 400 && P.t < P.t0 + 2; g++) { P.step(1 / 60); metroRun(); }
+      goMeasure(7);
+      ok('tempo : sauter en jouant = une mesure de décompte avant la mes. 7', P.running && P.cue === 6 * num && P.t < 6 * num - num + 1e-6);
+      METRO.log.length = 0;
+      for (let g = 0; g < 600 && P.t < P.cue; g++) { P.step(1 / 60); metroRun(); }
+      const cnt = METRO.log.filter(c => c.b >= 5 * num && c.b < 6 * num).length;
+      ok('tempo : le décompte clique une fois par temps', cnt === num && METRO.log.every(c => c.b >= 5 * num), `${cnt} clics`);
+      const skipped = P.notes.filter(n => n.on < 6 * num && n.on >= 5 * num && n.st === 'auto').length;
+      ok('tempo : rien n\'est joué pendant le décompte', skipped === 0);
+      P.running = false; goMeasure(3); syncBar();
+      ok('tempo à l\'arrêt : on reste arrêté, « Lancer à la mes. 3 »', !P.running && !$('#p-start').hidden && /Lancer à la mes\. 3/.test($('#p-go').textContent));
+      // changer de mode garde la mesure
+      $('#p-mode').click();
+      ok('changer de mode (tempo → démo) garde la mes. 3', P.mode === 'demo' && P.cue === 2 * num && P.running);
+      $('#p-hands').querySelector('[data-h="B"]').click();
+      ok('changer de main garde la mes. 3', P.hands === 'B' && P.cue === 2 * num);
+      // glisser la partition : 4 temps vers la gauche = 4 temps plus loin, en pause, puis on repart de là
+      P.mode = 'wait'; restart(); layout(); draw();
+      const cr = cv.getBoundingClientRect(), sx = cr.left + KB.W * 0.6, sy = cr.top + KB.hitY * 0.5, t0s = P.t;
+      const ce = (type, dx) => cv.dispatchEvent(new PointerEvent(type, { clientX: sx + dx, clientY: sy, pointerId: 52, bubbles: true }));
+      ce('pointerdown', 0); ce('pointermove', -SC.ppb * 2); const mid = { run: P.running, t: P.t };
+      ce('pointermove', -SC.ppb * 5); draw();
+      ok('glisser la partition : le morceau suit le doigt, en pause', !mid.run && Math.abs(P.t - (t0s + 5)) < 0.01, `${t0s.toFixed(2)} → ${P.t.toFixed(2)}`);
+      ce('pointerup', -SC.ppb * 5);
+      ok('glisser la partition : au relâché, on repart du temps le plus proche', P.running && P.cue === Math.round(t0s + 5) && $('#p-fpick').hidden);
+      SET.view = 'fall'; layout(); draw(); const t1s = P.t;
+      ce('pointerdown', 0);
+      cv.dispatchEvent(new PointerEvent('pointermove', { clientX: sx, clientY: sy - fallPPB() * 3, pointerId: 52, bubbles: true }));
+      ok('glisser les notes qui tombent vers le haut : retour en arrière', Math.abs(P.t - (t1s - 3)) < 0.01, `${t1s.toFixed(2)} → ${P.t.toFixed(2)}`);
+      cv.dispatchEvent(new PointerEvent('pointerup', { clientX: sx, clientY: sy - fallPPB() * 3, pointerId: 52, bubbles: true }));
+      ok('glisser : au relâché, reprise (bornée au début du passage)', P.running && P.cue === Math.max(0, Math.round(t1s - 3)));
+      SET.view = 'score';
+    }
+
     // ---------- 8. dessin : chaque morceau, les deux vues, du début à la fin ----------
     let errs = 0, frames = 0;
     for (const p of PIECES.concat(SCALES, [imp, pc])) for (const v of ['score', 'fall']) {

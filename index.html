@@ -93,8 +93,8 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 /* jeu */
 #v-play{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
-.tb{flex:none;height:48px;display:flex;align-items:center;gap:4px;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
-.ib{background:none;border:0;min-width:38px;height:38px;border-radius:10px;font-size:19px;color:var(--text);flex:none}
+.tb{flex:none;height:44px;display:flex;align-items:center;gap:4px;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.ib{background:none;border:0;min-width:38px;height:36px;border-radius:10px;font-size:19px;color:var(--text);flex:none}
 .ib:hover{background:var(--chip)}
 .ib svg{width:22px;height:22px;display:block;margin:auto;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .ib.on{color:var(--rh);background:var(--chip)}
@@ -114,8 +114,24 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 .toast{position:absolute;top:44px;left:50%;transform:translateX(-50%);background:var(--ok);color:#06140d;border-radius:12px;padding:5px 12px;font-size:13px;font-weight:600;pointer-events:none}
 .rot{position:absolute;left:8px;right:8px;top:8px;background:var(--chip);border-radius:10px;padding:6px 10px;font-size:12.5px;display:none;pointer-events:none}
 @media (orientation:portrait) and (max-width:700px){.rot{display:block}}
-.start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,12,18,.55);z-index:2}
-.start button{font-size:17px;padding:14px 22px}
+.start{position:absolute;inset:0;display:grid;place-items:center;background:rgba(10,12,18,.55);z-index:2;pointer-events:none}
+.start button{font-size:17px;padding:14px 22px;pointer-events:auto}
+/* barre des mesures : toucher = y aller, glisser = boucler le passage */
+.nav{flex:none;height:28px;display:flex;align-items:center;gap:4px;padding:0 max(8px,env(safe-area-inset-right)) 0 max(8px,env(safe-area-inset-left));background:var(--panel);border-bottom:1px solid var(--line)}
+.nav .ib{height:26px;min-width:34px;font-size:14px}
+.meas{flex:1;min-width:0;height:22px;display:flex;gap:1px;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.meas span{flex:1 1 0;min-width:0;position:relative;background:var(--chip);border-radius:3px;overflow:hidden;opacity:.35}
+.meas span.in{opacity:1}
+.meas span.cur{background:#2c2718}
+.meas span.cur::before{content:'';position:absolute;left:0;top:0;bottom:0;width:calc(var(--p,0) * 100%);background:rgba(201,168,76,.5)}
+.meas span.ok::after,.meas span.bad::after{content:'';position:absolute;left:0;right:0;bottom:0;height:3px;background:var(--ok)}
+.meas span.bad::after{background:var(--err)}
+.meas span.sel{background:rgba(147,132,189,.6);opacity:1}
+.meas em{position:absolute;left:3px;top:50%;transform:translateY(-50%);font:600 10.5px/1 system-ui,sans-serif;font-style:normal;color:var(--muted);display:none;pointer-events:none}
+.meas span.lb em,.meas span.cur em{display:block}
+.meas span.cur em{color:var(--text)}
+.pos{font-size:12px;color:var(--muted);white-space:nowrap;min-width:40px;text-align:center;font-variant-numeric:tabular-nums}
+.nav .chip{padding:4px 9px;font-size:12px}
 .sheet{position:absolute;right:max(8px,env(safe-area-inset-right));top:8px;width:min(340px,calc(100% - 16px));max-height:calc(100% - 16px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:3;display:grid;gap:12px}
 .sheet h3{margin:0;font-size:15px}
 .sheet .fld{background:none;border:0;padding:0}
@@ -213,6 +229,13 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
     <button class="ib" type="button" id="p-restart" aria-label="Recommencer">⟲</button>
     <button class="ib" type="button" id="p-set" aria-label="Réglages">⚙</button>
   </div>
+  <div class="nav">
+    <button class="ib" type="button" id="p-prev" aria-label="Début de la mesure, ou mesure d'avant" title="Début de la mesure, ou mesure d'avant (←)">⏮</button>
+    <div class="meas" id="p-bars" title="Toucher une mesure pour y aller · glisser sur plusieurs pour les boucler"></div>
+    <button class="ib" type="button" id="p-next" aria-label="Mesure suivante" title="Mesure suivante (→)">⏭</button>
+    <span class="pos" id="p-pos"></span>
+    <button class="chip" type="button" id="p-rng" hidden></button>
+  </div>
   <div id="stage">
     <canvas id="cv"></canvas>
     <div class="rot">Tourne le téléphone en paysage pour avoir le clavier en grand.</div>
@@ -231,6 +254,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
         <select id="p-vw"><option value="fall">les notes qui tombent</option><option value="score">la partition qui défile</option></select></label>
       <label class="fld" for="p-acc"><span>L'autre main est jouée par</span>
         <select id="p-acc"><option value="piano">le piano (sortie MIDI)</option><option value="phone">le téléphone</option><option value="off">personne</option></select></label>
+      <p class="txt" style="margin:0">Se déplacer : toucher une mesure dans la barre du haut, ⏮ / ⏭, ou faire glisser la partition du doigt (relâcher = repartir de là). Glisser sur plusieurs mesures de la barre les boucle.</p>
       <p class="txt" style="margin:0">Appui long sur un doigté (touche, note) pour le corriger. Latence déduite : <b id="p-lat"></b> · <button class="lnk" type="button" data-go="diag">calibrer</button></p>
       <div class="row"><button class="btn" type="button" id="p-fs">Plein écran</button><button class="btn p" type="button" id="p-close">Fermer</button></div>
       <p class="txt" id="p-src"></p>
@@ -243,7 +267,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '8', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '9', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -686,14 +710,14 @@ function metroCancel() {
 }
 function metroRun() {
   const live = view === 'play' && P && P.running && !P.done && !P.wait;
-  if (!live || !(SET.metro || (P.mode === 'tempo' && P.t < P.t0))) { if (METRO.nodes.length) metroCancel(); return; }
+  if (!live || !(SET.metro || (P.mode === 'tempo' && P.t < P.cue))) { if (METRO.nodes.length) metroCancel(); return; }
   const spb = 60 / P.bpm, num = P.pc.num;
   const from = P.tPrev === undefined ? P.t : P.tPrev; // le temps d'où le moteur vient de partir : ne pas sauter le 1er clic
   if (METRO.next === null || METRO.next < from - 1e-6 || METRO.next > P.t + 1 + METRO_AHEAD / spb + 1e-6) METRO.next = Math.ceil(from - 1e-6);
   if (AC) METRO.nodes = METRO.nodes.filter(c => c.at > AC.currentTime - 0.2);
   while (METRO.next <= P.t + METRO_AHEAD / spb) {
     const b = METRO.next; METRO.next = b + 1;
-    if (SET.metro || b < P.t0) metroClick(b, acAt((b - P.t) * spb), Math.abs(b / num - Math.round(b / num)) < 1e-6);
+    if (SET.metro || b < P.cue) metroClick(b, acAt((b - P.t) * spb), Math.abs(b / num - Math.round(b / num)) < 1e-6);
   }
 }
 
@@ -772,12 +796,25 @@ class Player {
   req(n) { return this.mode !== 'demo' && (this.hands === 'B' || n.hand === this.hands); }
   setRange(a, b) { this.m0 = a; this.m1 = b; this.t0 = (a - 1) * this.pc.num; this.t1 = b * this.pc.num; this.reset(); }
   reset() {
-    this.wait = null; this.flashes = []; this.done = false; this.extra = 0;
+    this.wait = null; this.flashes = []; this.done = false; this.extra = 0; this.cue = this.t0;
     for (const n of this.notes) { n.st = n.on >= this.t0 - 1e-6 && n.on < this.t1 - 1e-6 ? 'pend' : 'out'; n.pre = false; n.dt = null; n.vel = 0; n.guided = false; }
     // tempo : 0,3 s de silence avant le décompte, pour que le 1er clic soit programmé à l'avance comme les autres
     if (this.mode === 'tempo') { this.t = this.t0 - this.pc.num - 0.3 * this.bpm / 60; this.running = false; }
     else { this.t = this.t0 - (this.mode === 'demo' ? 0.5 : 1); this.running = true; }
     this.tPrev = this.t;
+  }
+  // repartir du temps b (dans le passage) : ce qui suit est rejoué, ce qui précède et n'a pas été joué est sauté
+  // (ni attendu ni compté) ; en tempo, une mesure de décompte avant b
+  seek(b, run) {
+    b = Math.max(this.t0, Math.min(this.t1 - this.pc.num, b));
+    this.wait = null; this.flashes = []; this.done = false; this.cue = b;
+    for (const n of this.notes) {
+      if (n.st === 'out') continue;
+      if (n.on >= b - 1e-6) { n.st = 'pend'; n.pre = false; n.dt = null; n.vel = 0; n.guided = false; }
+      else if (n.st === 'pend') n.st = 'skip';
+    }
+    this.t = this.tPrev = this.mode === 'tempo' ? b - this.pc.num - 0.3 * this.bpm / 60 : b - 0.5;
+    this.running = run;
   }
   step(dt) {
     this.tPrev = this.t;
@@ -847,7 +884,7 @@ class Player {
     this.done = true; showResult(r);
   }
   result() {
-    const req = this.notes.filter(n => n.st !== 'out' && this.req(n)), ok = req.filter(n => n.st === 'ok').length;
+    const req = this.notes.filter(n => n.st !== 'out' && n.st !== 'skip' && this.req(n)), ok = req.filter(n => n.st === 'ok').length;
     const per = {};
     for (const n of req) { const m = Math.floor(n.on / this.pc.num + 1e-6) + 1; const o = per[m] = per[m] || { t: 0, o: 0 }; o.t++; if (n.st === 'ok') o.o++; }
     const vel = h => { const v = req.filter(n => n.hand === h && n.vel).map(n => n.vel); return v.length ? Math.round(v.reduce((a, b) => a + b) / v.length) : 0; };
@@ -905,8 +942,9 @@ function keyStates() {
 let HITS = [];
 const hit = (x0, y0, x1, y1, n, pri) => HITS.push({ x0, y0, x1, y1, n, pri });
 function draw() { HITS = []; if (SET.view === 'score') drawScore(); else drawFall(); }
+const fallPPB = () => KB.hitY / (2.4 * P.bpm / 60); // 2,4 s de notes à l'écran
 function drawFall() {
-  const W = KB.W, H = KB.H, hy = KB.hitY, ppb = hy / (2.4 * P.bpm / 60), t = P.t;
+  const W = KB.W, H = KB.H, hy = KB.hitY, ppb = fallPPB(), t = P.t;
   ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
   for (const m in KB.pos) {
     const p = KB.pos[m];
@@ -923,7 +961,7 @@ function drawFall() {
   if (SET.hands) drawHands();
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, hy); ctx.clip();
   for (const n of P.notes) {
-    if (n.st === 'out') continue;
+    if (n.st === 'out' || n.st === 'skip') continue;
     const y2 = hy - (n.on - t) * ppb, y1 = y2 - n.dur * ppb;
     if (y2 < 0 || y1 > hy) continue;
     const p = KB.pos[n.midi]; if (!p) continue;
@@ -1049,7 +1087,7 @@ function staffLines(xa, xb) {
   ctx.strokeStyle = INK.staff; ctx.lineWidth = 1;
   for (const top of [SC.tTop, SC.bTop]) for (let i = 0; i < 5; i++) ln(xa, top + i * SC.sp + 0.5, xb, top + i * SC.sp + 0.5);
 }
-function unitAlpha(u) { const n = u.notes[0]; return n.st === 'out' ? 0.22 : P.mode !== 'demo' && !P.req(n) ? 0.42 : 1; }
+function unitAlpha(u) { const n = u.notes[0]; return n.st === 'out' || n.st === 'skip' ? 0.22 : P.mode !== 'demo' && !P.req(n) ? 0.42 : 1; }
 function headCol(n) {
   if (n.st === 'ok') return INK.ok;
   if (n.st === 'err' || n.st === 'miss') return INK.err;
@@ -1168,7 +1206,7 @@ function openPiece(pc) {
   $('#p-m0').innerHTML = opts; $('#p-m1').innerHTML = opts; $('#p-m0').value = 1; $('#p-m1').value = pc.measures;
   $('#p-loop').checked = false; $('#p-hd').checked = SET.hands; $('#p-acc').value = SET.accomp;
   $('#p-res').hidden = true; $('#p-sheet').hidden = true;
-  show('play'); layout(); syncBar();
+  show('play'); layout(); navBuild(); syncBar();
   if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
 }
 function syncBar() {
@@ -1186,7 +1224,13 @@ function syncBar() {
   $('#p-met').checked = SET.metro; $('#p-vw').value = SET.view; $('#p-lat').textContent = (SET.latency || 0) + ' ms';
   $('#p-play').textContent = P.running && !P.done ? '⏸' : '▶';
   $('#p-start').hidden = !(P.mode === 'tempo' && !P.running && !P.done);
-  $('#p-go').textContent = P.t > P.t0 - P.pc.num ? '▶ Reprendre' : '▶ Lancer · une mesure de décompte';
+  const cueM = Math.floor(P.cue / P.pc.num + 1e-6) + 1;
+  $('#p-go').textContent = P.t > P.cue - P.pc.num ? '▶ Reprendre' : '▶ Lancer' + (cueM > 1 ? ' à la mes. ' + cueM : '') + ' · une mesure de décompte';
+  const full = P.m0 === 1 && P.m1 === P.pc.measures, rg = $('#p-rng');
+  rg.hidden = full; rg.textContent = (P.loop ? '⟳ ' : '') + 'mes. ' + P.m0 + '-' + P.m1 + ' ✕';
+  rg.title = 'Passage ' + (P.loop ? 'en boucle' : 'choisi') + ' : toucher pour revenir au morceau entier';
+  $('#p-m0').value = P.m0; $('#p-m1').value = P.m1; $('#p-loop').checked = P.loop;
+  navSync(true);
 }
 function restart() { P.reset(); metroCancel(); METRO.next = null; $('#p-res').hidden = true; syncBar(); }
 function toast(s) { const el = $('#p-toast'); el.textContent = s; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 1800); }
@@ -1221,8 +1265,9 @@ function frame(now) {
     if (P.running && !P.done && P.mode !== 'demo') addPractice(dt);
     const w = $('#p-wait');
     w.hidden = !P.wait || SET.view === 'score'; if (!w.hidden) w.textContent = 'Joue ' + [...new Set(P.wait.grp.map(n => n.fr))].join(' + ');
-    const c = $('#p-count'), left = P.t0 - P.t;
+    const c = $('#p-count'), left = P.cue - P.t;
     c.hidden = !(P.mode === 'tempo' && P.running && left > 0 && left <= P.pc.num + 1e-6); if (!c.hidden) c.textContent = Math.ceil(left);
+    navSync();
   } else metroRun();
   requestAnimationFrame(frame);
 }
@@ -1349,10 +1394,16 @@ $('#d-synth').onclick = () => synth(60, 0.8, 90);
 $('#d-retry').onclick = midiInit;
 
 $('#p-back').onclick = () => show('home');
-$('#p-hands').onclick = e => { const b = e.target.closest('[data-h]'); if (!b) return; P.hands = b.dataset.h; P.save(); restart(); };
+// changer de main ou de mode garde la mesure où l'on est
+function keepPlace(change) {
+  const num = P.pc.num, b = P.done ? 0 : Math.floor(Math.max(P.t, P.cue) / num + 1e-6) * num;
+  change(); restart();
+  if (b > P.t0 && b < P.t1) seekTo(b, P.running);
+}
+$('#p-hands').onclick = e => { const b = e.target.closest('[data-h]'); if (!b) return; keepPlace(() => { P.hands = b.dataset.h; P.save(); }); };
 $('#p-tempo').onclick = () => { P.pct = PCT[(PCT.indexOf(P.pct) + 1) % PCT.length] || 70; P.save(); metroCancel(); syncBar(); };
 $('#p-mode').onclick = () => {
-  P.mode = MODES[(MODES.indexOf(P.mode) + 1) % MODES.length]; P.save(); restart();
+  keepPlace(() => { P.mode = MODES[(MODES.indexOf(P.mode) + 1) % MODES.length]; P.save(); });
   if (P.mode === 'demo') toast('Démo sur ' + (SET.accomp !== 'phone' && MIDI.outs.length ? 'le piano' : 'le téléphone'));
 };
 const setView = v => { SET.view = v; saveSet(); layout(); syncBar(); };
@@ -1384,7 +1435,108 @@ $('#p-fs').onclick = () => {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   else if (d.requestFullscreen) d.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {});
 };
-new ResizeObserver(() => { if (view === 'play') layout(); }).observe($('#stage'));
+new ResizeObserver(() => { if (view === 'play') { layout(); navLabels(); } }).observe($('#stage'));
+
+/* ---------- se déplacer dans le morceau : barre des mesures, ⏮ ⏭, glisser la partition, flèches du clavier ---------- */
+const NAV = { cells: [], cur: 0, last: 0, sel: null };
+function navBuild() {
+  $('#p-bars').innerHTML = Array.from({ length: P.pc.measures }, (_, i) => `<span><em>${i + 1}</em></span>`).join('');
+  NAV.cells = [...$('#p-bars').children]; NAV.cur = 0; NAV.sel = null; navLabels(); navSync(true);
+}
+// numéros seulement là où ils tiennent : 1, 5, 9... quand les cases sont étroites
+function navLabels() {
+  if (!P || !NAV.cells.length) return;
+  const w = $('#p-bars').clientWidth / P.pc.measures, k = [1, 2, 4, 8, 16, 32].find(s => w * s >= 20) || 64;
+  NAV.cells.forEach((c, i) => { c.dataset.lb = i % k === 0 ? 1 : ''; });
+  navSync(true);
+}
+const navPos = () => Math.max(P.t, P.cue);
+// case de chaque mesure : dans le passage, mesure en cours (remplie au fil des temps), toute juste / avec une erreur
+function navSync(force) {
+  if (!P || !NAV.cells.length) return;
+  const num = P.pc.num, N = P.pc.measures, pos = navPos(), cur = Math.min(N, Math.max(1, Math.floor(pos / num + 1e-6) + 1));
+  NAV.cells[cur - 1].style.setProperty('--p', Math.max(0, Math.min(1, pos / num - cur + 1)).toFixed(3));
+  const now = performance.now();
+  if (!force && cur === NAV.cur && now - NAV.last < 200) return;
+  NAV.last = now;
+  if (cur !== NAV.cur) { if (NAV.cells[NAV.cur - 1]) NAV.cells[NAV.cur - 1].style.removeProperty('--p'); NAV.cur = cur; $('#p-pos').textContent = cur + ' / ' + N; }
+  const tot = new Array(N + 1).fill(0), ok = tot.slice(), bad = tot.slice();
+  for (const n of P.notes) {
+    if (n.st === 'out' || n.st === 'skip' || !P.req(n)) continue;
+    const m = Math.floor(n.on / num + 1e-6) + 1; tot[m]++;
+    if (n.st === 'ok') ok[m]++; else if (n.st === 'err' || n.st === 'miss') bad[m]++;
+  }
+  const s = NAV.sel && [Math.min(NAV.sel.a, NAV.sel.b), Math.max(NAV.sel.a, NAV.sel.b)];
+  NAV.cells.forEach((c, i) => {
+    const m = i + 1;
+    c.className = [m >= P.m0 && m <= P.m1 ? 'in' : '', m === cur ? 'cur' : '', c.dataset.lb ? 'lb' : '', bad[m] ? 'bad' : tot[m] && ok[m] === tot[m] ? 'ok' : '',
+      s && m >= s[0] && m <= s[1] ? 'sel' : ''].filter(Boolean).join(' ');
+  });
+}
+function seekTo(b, run) {
+  closePicker(); P.seek(b, run); metroCancel(); METRO.next = null; $('#p-res').hidden = true; syncBar();
+}
+// aller à la mesure m ; hors du passage choisi, on revient au morceau entier
+function goMeasure(m) {
+  if (PK) closePicker();
+  // en tempo, on ne relance que si ça jouait (décompte d'une mesure) ; en attente et en démo, ça repart
+  const run = P.mode === 'tempo' ? P.running && !P.done : P.done || P.running, num = P.pc.num;
+  if (m < P.m0 || m > P.m1) { P.loop = false; P.setRange(1, P.pc.measures); }
+  seekTo((m - 1) * num, run);
+  toast('Mesure ' + m);
+}
+// ⏮ : au début de la mesure en cours, ou à la mesure d'avant si on y est déjà ; ⏭ : mesure suivante
+function navStep(dir) {
+  if (!P) return;
+  const num = P.pc.num, pos = navPos(), i = Math.floor(pos / num + 1e-6);
+  const m = Math.max(P.m0, Math.min(P.m1, (dir < 0 ? (pos - i * num > 0.5 ? i : i - 1) : i + 1) + 1));
+  goMeasure(m);
+}
+function setLoop(a, b) {
+  const run = P.mode === 'tempo' ? false : P.done || P.running;
+  P.loop = true; P.setRange(a, b); seekTo(P.t0, run);
+  toast('Boucle mes. ' + a + '-' + b);
+}
+$('#p-prev').onclick = () => navStep(-1);
+$('#p-next').onclick = () => navStep(1);
+$('#p-rng').onclick = () => { const m = Math.floor(navPos() / P.pc.num + 1e-6) + 1; P.loop = false; P.setRange(1, P.pc.measures); seekTo((m - 1) * P.pc.num, P.mode !== 'tempo'); toast('Morceau entier'); };
+const measAt = x => { const r = $('#p-bars').getBoundingClientRect(); return Math.min(P.pc.measures, Math.max(1, Math.floor((x - r.left) / r.width * P.pc.measures) + 1)); };
+const bars = $('#p-bars');
+bars.addEventListener('pointerdown', e => {
+  if (!P) return;
+  NAV.sel = { id: e.pointerId, a: measAt(e.clientX), b: 0, x: e.clientX, moved: false }; NAV.sel.b = NAV.sel.a;
+  try { bars.setPointerCapture(e.pointerId); } catch (err) {}
+  navSync(true);
+});
+bars.addEventListener('pointermove', e => {
+  const s = NAV.sel; if (!s || s.id !== e.pointerId) return;
+  if (Math.abs(e.clientX - s.x) > 8) s.moved = true;
+  const b = s.moved ? measAt(e.clientX) : s.a; if (b !== s.b) { s.b = b; navSync(true); }
+});
+bars.addEventListener('pointerup', e => {
+  const s = NAV.sel; if (!s || s.id !== e.pointerId) return;
+  NAV.sel = null;
+  if (s.a === s.b) goMeasure(s.a); else setLoop(Math.min(s.a, s.b), Math.max(s.a, s.b));
+});
+bars.addEventListener('pointercancel', () => { NAV.sel = null; navSync(true); });
+// glisser la partition (ou les notes qui tombent) : le morceau suit le doigt, en pause ; au relâché, on repart du temps le plus proche
+let SCR = null;
+function scrubMove(x, y) {
+  if (!SCR.on) {
+    if (Math.hypot(x - SCR.x, y - SCR.y) < 10) return;
+    SCR.on = true; cancelLong();
+    SCR.run = P.mode === 'tempo' ? P.running && !P.done : P.done || P.running;
+    P.running = false; P.wait = null; P.done = false; $('#p-res').hidden = true; metroCancel(); syncBar();
+  }
+  const d = SET.view === 'score' ? -(x - SCR.x) / SC.ppb : (y - SCR.y) / fallPPB();
+  P.t = P.tPrev = P.cue = Math.max(P.t0 - 1, Math.min(P.t1, SCR.t + d));
+}
+function scrubEnd() {
+  const s = SCR; SCR = null; if (!s || !s.on) return;
+  const b = Math.max(P.t0, Math.min(P.t1 - P.pc.num, Math.round(P.t)));
+  seekTo(b, s.run);
+  toast('Mesure ' + (Math.floor(b / P.pc.num + 1e-6) + 1) + (b % P.pc.num ? ', temps ' + (b % P.pc.num + 1) : ''));
+}
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && view === 'play' && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
 });
@@ -1396,11 +1548,18 @@ cv.addEventListener('pointerdown', e => {
   closePicker();
   const h = hitAt(x, y);
   if (h) LP = { id: e.pointerId, x, y, timer: setTimeout(() => { LP = null; openPicker(h.n, x, y); }, LONG_MS) };
-  if (m === null) return;
+  if (m === null) {
+    if (P && y < KB.hitY) { SCR = { id: e.pointerId, x, y, t: P.t, on: false }; try { cv.setPointerCapture(e.pointerId); } catch (err) {} }
+    return;
+  }
   ptr[e.pointerId] = m; try { cv.setPointerCapture(e.pointerId); } catch (err) {} noteOn(m, 80, 'screen', evTime(e));
 });
-cv.addEventListener('pointermove', e => { if (LP && LP.id === e.pointerId) { const r = cv.getBoundingClientRect(); if (Math.hypot(e.clientX - r.left - LP.x, e.clientY - r.top - LP.y) > 12) cancelLong(); } });
-const ptrUp = e => { if (LP && LP.id === e.pointerId) cancelLong(); if (ptr[e.pointerId] !== undefined) { noteOff(ptr[e.pointerId]); delete ptr[e.pointerId]; } };
+cv.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (LP && LP.id === e.pointerId && Math.hypot(x - LP.x, y - LP.y) > 12) cancelLong();
+  if (SCR && SCR.id === e.pointerId) scrubMove(x, y);
+});
+const ptrUp = e => { if (LP && LP.id === e.pointerId) cancelLong(); if (SCR && SCR.id === e.pointerId) scrubEnd(); if (ptr[e.pointerId] !== undefined) { noteOff(ptr[e.pointerId]); delete ptr[e.pointerId]; } };
 cv.addEventListener('pointerup', ptrUp); cv.addEventListener('pointercancel', ptrUp);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -1488,6 +1647,7 @@ const KEYMAP = ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 
 let kbOct = 60; const kbDown = {};
 document.addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey || /INPUT|SELECT/.test(e.target.tagName)) return;
+  if (view === 'play' && P && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { navStep(e.code === 'ArrowLeft' ? -1 : 1); e.preventDefault(); return; }
   if (e.code === 'KeyZ') { kbOct = Math.max(24, kbOct - 12); return; }
   if (e.code === 'KeyX') { kbOct = Math.min(96, kbOct + 12); return; }
   const i = KEYMAP.indexOf(e.code); if (i < 0 || view === 'home') return;
