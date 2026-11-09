@@ -176,9 +176,36 @@ export async function run() {
     // ---------- 7 ter. doigtés calculés pour les imports ----------
     const asImport = (p, id) => ({ id, title: p.title, sub: '', bpm: p.bpm, num: p.num, hands: 'B', pct: 100, src: '', key: p.key,
       data: build(p).notes.map(n => [n.midi, n.on, n.dur, n.hand === 'R' ? 1 : 0]) });
+    // les 12 gammes majeures, montée puis descente, contre le doigté qu'on enseigne (« ? » = libre ; le doigt de chaque note se garde à la descente)
+    const STD = { Do: [60, '1231234', '5432132'], Sol: [55, '1231234', '5432132'], 'Ré': [62, '1231234', '5432132'], La: [57, '1231234', '5432132'], Mi: [64, '1231234', '5432132'],
+      Si: [59, '1231234', '4321432'], Fa: [53, '1234123', '5432132'], 'Si♭': [58, '4123123', '3214321'], 'Mi♭': [63, '3123412', '3214321'], 'La♭': [56, '3412312', '3214321'],
+      'Ré♭': [61, '2312341', '3214321'], 'Fa♯': [54, '2341231', '4321321'] };
+    const TOP = { R: { Do: 5, Sol: 5, 'Ré': 5, La: 5, Mi: 5, Si: 5, Fa: 4 }, L: {} }; // dernier doigt en haut (sinon celui du motif)
+    const scaleFing = octs => {
+      const res = {};
+      for (const [name, [root, rp, lp]] of Object.entries(STD)) {
+        const ms = []; for (let o = 0; o < octs; o++) for (const s of [0, 2, 4, 5, 7, 9, 11]) ms.push(root + 12 * o + s); ms.push(root + 12 * octs);
+        const seq = ms.concat(ms.slice(0, -1).reverse());
+        const want = (pat, h) => {
+          const up = ms.map((_, i) => i === ms.length - 1 ? (TOP[h][name] || (h === 'L' ? '?' : +pat[0])) : i % 7 === 0 && i ? (h === 'L' ? 1 : +pat[0]) : +pat[i % 7]);
+          if (h === 'L' && ['Si♭', 'Mi♭', 'La♭', 'Ré♭', 'Fa♯'].includes(name)) for (let i = 7; i < up.length - 1; i += 7) up[i] = +pat[0];
+          return up.concat(up.slice(0, -1).reverse());
+        };
+        const pc2 = build({ id: 'g' + octs + name, title: '', sub: '', bpm: 80, num: 4, hands: 'B', pct: 100, src: '',
+          data: seq.map((m, i) => [m, i / 2, 0.5, 1]).concat(seq.map((m, i) => [m - 12 * octs - 12, 40 + i / 2, 0.5, 0])) });
+        for (const [h, pat] of [['R', rp], ['L', lp]]) {
+          const got = pc2.notes.filter(n => n.hand === h).map(n => n.f), w = want(pat, h);
+          res[name + ' ' + (h === 'R' ? 'MD' : 'MG')] = w.every((c, i) => c === '?' || c === got[i]) ? '' : got.join('');
+        }
+      }
+      return res;
+    };
+    const one = scaleFing(1), two = scaleFing(2), bad = r => Object.keys(r).filter(k => r[k]);
+    ok('doigtés calculés, gammes sur une octave : 22 / 24 standard (écarts admis : Si MG, Fa♯ MD)', bad(one).join() === 'Si MG,Fa♯ MD', `${24 - bad(one).length} / 24 · ` + bad(one).map(k => k + ' ' + one[k]).join(' · '));
+    const flats = ['Si♭', 'Mi♭', 'La♭', 'Ré♭'].flatMap(n => [n + ' MD', n + ' MG']);
+    ok('doigtés calculés, deux octaves : gammes à bémols justes aux deux mains, MD juste sauf Fa♯', flats.every(k => !two[k]) && bad(two).filter(k => k.endsWith('MD')).join() === 'Fa♯ MD',
+      `${24 - bad(two).length} / 24 · à part : ` + bad(two).join(', '));
     const doScale = build(asImport(SCALES[0], 'test-do'));
-    const fs = h => doScale.notes.filter(n => n.hand === h).map(n => n.f).join('');
-    ok('doigtés calculés : gamme de Do = doigté standard (MD 12312345 4321321, MG 54321321 2312345)', fs('R') === '123123454321321' && fs('L') === '543213212312345', `MD ${fs('R')} · MG ${fs('L')}`);
     ok('doigtés calculés : passages du pouce marqués comme changements de position', doScale.notes.filter(n => n.hand === 'R' && n.ch).length >= 3);
     const chords = build({ id: 'test-ch', title: '', sub: '', bpm: 90, num: 4, hands: 'B', pct: 100, src: '', key: 0,
       data: [[60, 0, 1, 1], [64, 0, 1, 1], [67, 0, 1, 1], [60, 1, 1, 1], [72, 1, 1, 1], [48, 0, 1, 0], [52, 0, 1, 0], [55, 0, 1, 0]] });

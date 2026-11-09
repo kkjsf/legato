@@ -243,7 +243,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '6', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '7', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -390,7 +390,7 @@ function build(pc) {
    La main gauche est traitée comme une main droite en miroir (hauteur q = -midi) : mêmes règles, pouce du côté aigu. */
 // écart confortable / possible en demi-tons entre deux doigts, du grave (premier doigt) vers l'aigu
 const SPAN = { 12: [5, 8], 13: [7, 10], 14: [9, 11], 15: [10, 12], 23: [3, 5], 24: [5, 7], 25: [7, 9], 34: [2, 4], 35: [4, 6], 45: [2, 4] };
-const CROSS = { 2: [3.5, 2], 3: [3, 4], 4: [4, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart sans surcoût
+const CROSS = { 2: [3.5, 2], 3: [3, 4], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher
 // coût d'aller de la note a (doigt fa) à la note b (doigt fb) ; kind 1 = la main se déplace (changement de position)
 function fingStep(a, fa, b, fb) {
   const d = b.q - a.q, D = Math.abs(d);
@@ -403,7 +403,11 @@ function fingStep(a, fa, b, fb) {
     if (D > rm) return [c + 6 + (D - rm) * 0.5, 1];
     return [c + Math.max(0, D - cm) * 1.5, 0];
   }
-  if (hi === 1 && lo <= 4) return [CROSS[lo][0] + Math.max(0, D - CROSS[lo][1]) * 1.5, 1];
+  if (hi === 1 && lo <= 4) {
+    // passage du pouce : plus facile sur un demi-ton, et d'une touche noire vers une blanche (Si♭ au 4, puis Do au pouce)
+    const long = d > 0 ? a : b, thumb = d > 0 ? b : a;
+    return [CROSS[lo][0] + (D - 1) * 0.3 + Math.max(0, D - CROSS[lo][1]) * 1.5 - (long.black && !thumb.black ? 1.5 : 0), 1];
+  }
   return [20 + D, 1];
 }
 const keyCost = (f, black) => black ? (f === 1 ? 2.5 : f === 5 ? 0.5 : 0) : 0;
@@ -450,18 +454,35 @@ function autoFinger(notes) {
     }
     if (!evs.length) continue;
     for (const e of evs) { e.ns.sort((a, b) => a.q - b.q); e.end = Math.max(...e.ns.map(x => x.n.on + x.n.dur)); e.cands = fingCands(e.ns); }
-    const tbl = [evs[0].cands.map(c => ({ cost: c.cost, back: -1 }))];
-    for (let i = 1; i < evs.length; i++) {
-      const A = evs[i - 1], B = evs[i];
-      tbl.push(B.cands.map(cb => {
-        let best = { cost: Infinity, back: 0 };
-        A.cands.forEach((ca, j) => { const c = tbl[i - 1][j].cost + fingTrans(A, ca, B, cb)[0]; if (c < best.cost) best = { cost: c, back: j }; });
-        best.cost += cb.cost; return best;
-      }));
+    // extrémités : un trait commence par le doigt du bout (le pouce s'il monte, le 5 s'il descend, dans le repère de la main)
+    // et finit de même ; puis le premier et le dernier doigt reprennent celui de la même note ailleurs dans le passage
+    const ends = {};
+    for (const i of new Set([0, evs.length - 1])) {
+      const o = evs[i ? i - 1 : 1];
+      if (evs[i].ns.length === 1 && o) ends[i] = { pos: o.ns[0].q > evs[i].ns[0].q ? 1 : o.ns[0].q < evs[i].ns[0].q ? 5 : 0 };
     }
-    const last = tbl[tbl.length - 1];
-    let j = last.indexOf(last.reduce((m, c) => c.cost < m.cost ? c : m));
-    for (let i = evs.length - 1; i >= 0; i--) { evs[i].pick = evs[i].cands[j]; j = tbl[i][j].back; }
+    const endCost = (i, c) => !ends[i] ? 0 : (ends[i].pos ? 0.4 * Math.abs(c.f[0] - ends[i].pos) : 0) + (ends[i].same && c.f[0] !== ends[i].same ? 1 : 0);
+    const solve = () => {
+      const tbl = [evs[0].cands.map(c => ({ cost: c.cost + endCost(0, c), back: -1 }))];
+      for (let i = 1; i < evs.length; i++) {
+        const A = evs[i - 1], B = evs[i];
+        tbl.push(B.cands.map(cb => {
+          let best = { cost: Infinity, back: 0 };
+          A.cands.forEach((ca, j) => { const c = tbl[i - 1][j].cost + fingTrans(A, ca, B, cb)[0]; if (c < best.cost) best = { cost: c, back: j }; });
+          best.cost += cb.cost + endCost(i, cb); return best;
+        }));
+      }
+      const last = tbl[tbl.length - 1];
+      let j = last.indexOf(last.reduce((m, c) => c.cost < m.cost ? c : m));
+      for (let i = evs.length - 1; i >= 0; i--) { evs[i].pick = evs[i].cands[j]; j = tbl[i][j].back; }
+    };
+    solve();
+    for (const i in ends) {
+      const pcl = evs[i].ns[0].n.midi % 12; let near = null;
+      evs.forEach((e, k) => { if (k !== +i && e.ns.length === 1 && e.ns[0].n.midi % 12 === pcl && Math.abs(k - i) <= 16 && (near === null || Math.abs(k - i) < Math.abs(near - i))) near = k; });
+      if (near !== null) ends[i].same = evs[near].pick.f[0];
+    }
+    solve();
     evs.forEach((e, i) => {
       const ch = !i || fingTrans(evs[i - 1], evs[i - 1].pick, e, e.pick)[1] > 0;
       e.ns.forEach((x, k) => { x.n.f = e.pick.f[k]; x.n.ch = ch; });

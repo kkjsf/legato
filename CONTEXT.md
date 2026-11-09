@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v6 en ligne et vérifiée (2026-11-09, `78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v7 en ligne (2026-11-09)** ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,32 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v7 (2026-11-09) : doigtés calculés vérifiés sur les 12 gammes majeures
+
+Question de Simon : « comment peux-tu être sûr des doigtés ? ». Réponse honnête : on ne peut pas l'être, le
+calcul est un modèle de coût ; on le confronte donc au doigté qu'on enseigne pour les 12 gammes majeures
+(montée et descente, chaque note gardant son doigt). La v6 était juste sur 15 / 22 en une octave et
+**3 / 24 en deux octaves** : à égalité de coût, elle tranchait au hasard (pouce sur Sol en Do) et
+ratait les gammes à bémols (Si♭ en 2-3-1 au lieu de 4-1-2-3). Trois règles ajoutées :
+
+- **Passage du pouce plus facile sur un demi-ton** (+0,3 par demi-ton au-delà) **et d'une touche noire
+  vers une blanche** (-1,5 : Si♭ au 4 puis Do au pouce) ; passer depuis le 4 coûte 3,5 (était 4).
+- **Extrémités** : un trait commence par le doigt du bout dans le sens où il va (pouce s'il monte, 5
+  s'il descend, dans le repère de la main) et finit de même (0,4 par doigt d'écart).
+- **Même note, même doigt** pour la première et la dernière note : elles reprennent le doigt de la
+  même note la plus proche dans le passage (16 groupes au plus), +1 sinon. Deux passes de calcul.
+
+Résultat : **une octave 22 / 24** (écarts : Si MG commence par 5 au lieu de 4 ; Fa♯ MD finit en haut
+par 3-4-5 sans repasser le pouce), **deux octaves 17 / 24** : les quatre gammes à bémols justes aux deux
+mains, la MD juste partout sauf Fa♯, mais la **MG de Do, Sol, Ré, La, Si et Fa reste à part** (Mi
+juste). Là, le doigté enseigné est une convention (le 5 sur la tonique, le pouce sur la tonique et la
+dominante, passages sur des tons) que les règles générales ne retrouvent pas : en Do MG à la descente
+le calcul met le pouce sur Fa et Do (passages sur des demi-tons, jouable), en Fa et Sol il passe vers la
+touche noire. Essayé et abandonné (sur-ajustement, ou sans effet) : un pouce attiré par la tonique de
+l'armure, une préférence MG pour les passages sur un ton, un vote « même doigt » sur tout le passage.
+Accords inchangés (1-3-5, 5-3-1, 1-5) ; accord avec les doigtés écrits : Menuet 50 %, Mélodie 57 %, Menuet en
+sol mineur 71 %, Ode 67 %, Clair de lune 76 %. Tests : 64 (les 12 gammes en une et deux octaves).
 
 ### v6 (2026-11-09) : doigtés calculés, correction par appui long, latence, icône
 
