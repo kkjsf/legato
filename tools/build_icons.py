@@ -1,55 +1,70 @@
-"""Icones de Legato : trois touches ivoire, une note qui tombe sur la touche du milieu, chiffre 1.
+"""Icones de Legato : trois notes qui montent (or) liees par une liaison (violet), sans portee.
 Usage : python tools/build_icons.py (depuis le dossier legato/)."""
+import math
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 OUT = Path(__file__).resolve().parent.parent / 'icons'
-BG, IVORY, EBONY, AMBER, INK, VIOLET = (11, 13, 15), (240, 232, 216), (5, 6, 7), (201, 168, 76), (16, 19, 26), (147, 132, 189)
+BG, GOLD, VIOLET = '#0b0d0f', '#c9a84c', '#9384bd'
+HEADS = [(150, 372), (258, 316), (366, 246)]   # centres des tetes, en repere 512
+RX, RY, ROT = 47, 33, -22                       # tete de noire inclinee
+STEM_W, STEM_H = 21, 200
+
+
+def ellipse_pts(cx, cy, n=72):
+    a = math.radians(ROT)
+    return [(cx + RX * math.cos(t) * math.cos(a) - RY * math.sin(t) * math.sin(a),
+             cy + RX * math.cos(t) * math.sin(a) + RY * math.sin(t) * math.cos(a))
+            for t in (2 * math.pi * i / n for i in range(n))]
+
+
+def stem(cx, cy):
+    x = cx + RX * math.cos(math.radians(ROT)) - 4   # hampe collee au bord droit de la tete
+    return (x - STEM_W, cy - STEM_H, x, cy - 6)
+
+
+def bez(p0, p1, p2, p3, n=48):
+    return [tuple((1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d
+                  for a, b, c, d in zip(p0, p1, p2, p3)) for t in (i / n for i in range(n + 1))]
+
+
+# liaison : un croissant sous les notes, epais au milieu, effile aux bouts
+SLUR_OUT = ((104, 404), (184, 496), (344, 484), (414, 304))
+SLUR_IN = ((414, 304), (334, 432), (194, 448), (104, 404))
 
 
 def draw(size, safe):
-    img = Image.new('RGB', (size, size), BG)
+    big = size * 4
+    img = Image.new('RGB', (big, big), BG)
     d = ImageDraw.Draw(img)
-    s = size / 512
-    pad = 0 if not safe else 64
-    k = lambda v: v * s * (512 - 2 * pad) / 512 + pad * s
-    kw, top, bot = 116, 300, 456
-    for i in range(3):
-        x = 82 + i * (kw + 6)
-        d.rounded_rectangle([k(x), k(top), k(x + kw), k(bot)], radius=12 * s, fill=AMBER if i == 1 else IVORY)
-    for i in (1, 2):
-        x = 82 + i * (kw + 6) - 38
-        d.rounded_rectangle([k(x), k(top - 2), k(x + 70), k(top + 96)], radius=6 * s, fill=EBONY)
-    d.rounded_rectangle([k(100), k(150), k(150), k(276)], radius=12 * s, fill=VIOLET)
-    nx = 82 + kw + 6 + 22
-    d.rounded_rectangle([k(nx), k(70), k(nx + 72), k(276)], radius=16 * s, fill=AMBER)
-    r = 30
-    cx, cy = nx + 36, 236
-    d.ellipse([k(cx - r), k(cy - r), k(cx + r), k(cy + r)], fill=(0, 0, 0, 0), outline=None)
-    d.ellipse([k(cx - r), k(cy - r), k(cx + r), k(cy + r)], fill=(138, 112, 40))
-    try:
-        font = ImageFont.truetype('arialbd.ttf', int(44 * s * (512 - 2 * pad) / 512))
-    except OSError:
-        font = ImageFont.load_default()
-    d.text((k(cx), k(cy + 1)), '1', fill=(255, 255, 255), font=font, anchor='mm')
-    return img
+    pad = 64 if safe else 0
+    k = lambda p: tuple(((v - 256) * (512 - 2 * pad) / 512 + 256) * big / 512 for v in p)
+    d.polygon([k(p) for p in bez(*SLUR_OUT) + bez(*SLUR_IN)], fill=VIOLET)
+    for cx, cy in HEADS:
+        d.polygon([k(p) for p in ellipse_pts(cx, cy)], fill=GOLD)
+        x0, y0, x1, y1 = stem(cx, cy)
+        a, b = k((x0, y0)), k((x1, y1))
+        d.rounded_rectangle([a, b], radius=(b[0] - a[0]) / 2, fill=GOLD)
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def svg():
+    f = lambda pts: ' '.join(f'{x:.1f},{y:.1f}' for x, y in pts)
+    o, i = SLUR_OUT, SLUR_IN
+    slur = (f'M{o[0][0]} {o[0][1]} C{o[1][0]} {o[1][1]} {o[2][0]} {o[2][1]} {o[3][0]} {o[3][1]} '
+            f'C{i[1][0]} {i[1][1]} {i[2][0]} {i[2][1]} {i[3][0]} {i[3][1]}Z')
+    notes = ''
+    for cx, cy in HEADS:
+        x0, y0, x1, y1 = stem(cx, cy)
+        notes += (f'<ellipse cx="{cx}" cy="{cy}" rx="{RX}" ry="{RY}" transform="rotate({ROT} {cx} {cy})" fill="{GOLD}"/>\n'
+                  f'<rect x="{x0:.1f}" y="{y0}" width="{STEM_W}" height="{y1 - y0}" rx="{STEM_W / 2}" fill="{GOLD}"/>\n')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">\n<rect width="512" height="512" rx="96" fill="{BG}"/>\n'
+            f'<path d="{slur}" fill="{VIOLET}"/>\n{notes}</svg>\n')
 
 
 OUT.mkdir(exist_ok=True)
 draw(512, False).save(OUT / 'icon-512.png')
-draw(512, False).resize((192, 192), Image.LANCZOS).save(OUT / 'icon-192.png')
+draw(192, False).save(OUT / 'icon-192.png')
 draw(512, True).save(OUT / 'icon-maskable-512.png')
-(OUT / 'icon.svg').write_text('''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-<rect width="512" height="512" rx="96" fill="#0b0d0f"/>
-<rect x="82" y="300" width="116" height="156" rx="12" fill="#f0e8d8"/>
-<rect x="204" y="300" width="116" height="156" rx="12" fill="#c9a84c"/>
-<rect x="326" y="300" width="116" height="156" rx="12" fill="#f0e8d8"/>
-<rect x="166" y="298" width="70" height="98" rx="6" fill="#050607"/>
-<rect x="288" y="298" width="70" height="98" rx="6" fill="#050607"/>
-<rect x="100" y="150" width="50" height="126" rx="12" fill="#9384bd"/>
-<rect x="226" y="70" width="72" height="206" rx="16" fill="#c9a84c"/>
-<circle cx="262" cy="236" r="30" fill="#8a7028"/>
-<text x="262" y="252" font-family="Arial,sans-serif" font-weight="700" font-size="44" fill="#fff" text-anchor="middle">1</text>
-</svg>
-''', encoding='utf-8')
+(OUT / 'icon.svg').write_text(svg(), encoding='utf-8')
 print('icones ecrites dans', OUT)

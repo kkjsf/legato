@@ -23,7 +23,7 @@ export async function run() {
     let synthCalls = 0; window.synth = () => { synthCalls++; };
 
     // ---------- 1. mode attente, main droite, vue partition ----------
-    SET.accomp = 'piano'; SET.view = 'score'; SET.metro = false; SET.fing = 'all';
+    SET.accomp = 'piano'; SET.view = 'score'; SET.metro = false; SET.fing = 'all'; SET.latency = 0;
     // MIDI.recent : garde anti-écho de 80 ms en temps réel ; les scénarios s'enchaînent en quelques ms, donc on la vide
     openPiece(menuet); P.hands = 'R'; P.mode = 'wait'; P.pct = 70; P.loop = false; restart(); sent.length = 0; MIDI.recent = {};
     let groups = 0, guard = 0;
@@ -172,6 +172,83 @@ export async function run() {
       ok('répertoire ' + p.id + ' : ' + n('R') + ' + ' + n('L') + ' notes, fin sur la barre, doigtés', ok2 && Math.abs(Math.max(end('R'), end('L')) - p.measures * p.num) < 1e-6 && p.notes.every(x => x.f >= 1 && x.f <= 5) && p.lvl >= 1,
         `${p.measures} mes., MD finit à ${end('R')}, MG à ${end('L')}`);
     }
+
+    // ---------- 7 ter. doigtés calculés pour les imports ----------
+    const asImport = (p, id) => ({ id, title: p.title, sub: '', bpm: p.bpm, num: p.num, hands: 'B', pct: 100, src: '', key: p.key,
+      data: build(p).notes.map(n => [n.midi, n.on, n.dur, n.hand === 'R' ? 1 : 0]) });
+    const doScale = build(asImport(SCALES[0], 'test-do'));
+    const fs = h => doScale.notes.filter(n => n.hand === h).map(n => n.f).join('');
+    ok('doigtés calculés : gamme de Do = doigté standard (MD 12312345 4321321, MG 54321321 2312345)', fs('R') === '123123454321321' && fs('L') === '543213212312345', `MD ${fs('R')} · MG ${fs('L')}`);
+    ok('doigtés calculés : passages du pouce marqués comme changements de position', doScale.notes.filter(n => n.hand === 'R' && n.ch).length >= 3);
+    const chords = build({ id: 'test-ch', title: '', sub: '', bpm: 90, num: 4, hands: 'B', pct: 100, src: '', key: 0,
+      data: [[60, 0, 1, 1], [64, 0, 1, 1], [67, 0, 1, 1], [60, 1, 1, 1], [72, 1, 1, 1], [48, 0, 1, 0], [52, 0, 1, 0], [55, 0, 1, 0]] });
+    const cf = (h, on) => chords.notes.filter(n => n.hand === h && n.on === on).sort((a, b) => a.midi - b.midi).map(n => n.f).join('');
+    ok('doigtés calculés : accords Do-Mi-Sol MD 135, MG 531, octave 15', cf('R', 0) === '135' && cf('L', 0) === '531' && cf('R', 1) === '15', `${cf('R', 0)} · ${cf('L', 0)} · ${cf('R', 1)}`);
+    const schu = PIECES.find(x => x.id === 'schumann-melodie');
+    for (const [p, src] of [[pc, null], [asImport(menuet, 'test-menuet'), menuet], [asImport(schu, 'test-schumann'), schu]]) {
+      build(p);
+      const same = src ? p.notes.filter((n, i) => src.notes[i].f === n.f).length : 0;
+      ok('import ' + p.id + ' : doigté 1 à 5 sur ses ' + p.notes.length + ' notes', p.notes.every(n => n.f >= 1 && n.f <= 5 && Number.isInteger(n.f)) && p.notes.some(n => n.ch),
+        src ? `${Math.round(same * 100 / p.notes.length)} % comme le doigté écrit à la main` : undefined);
+    }
+    try {
+      const r0 = await fetch('perso/Sarabande_Haendel_HWV437_8notes.mid');
+      if (r0.ok) { const sb = build(fromMidi('Sarabande.mid', parseMidi(await r0.arrayBuffer()))); ok('import Sarabande (fichier perso) : doigté 1 à 5 sur ses ' + sb.notes.length + ' notes', sb.notes.every(n => n.f >= 1 && n.f <= 5)); }
+    } catch (e) { /* fichier perso absent en ligne */ }
+
+    // ---------- 7 quater. correction d'un doigté par appui long ----------
+    SET.view = 'score'; SET.fing = 'all'; SET.kbd = true; openPiece(menuet); P.hands = 'R'; P.mode = 'wait'; restart();
+    for (let g = 0; g < 600 && !P.wait; g++) P.step(1 / 60);
+    draw();
+    const dig = HITS.filter(h => h.pri === 2).sort((a, b) => a.x0 - b.x0)[0], cr = cv.getBoundingClientRect();
+    if (!dig) ok('appui long : un chiffre touchable sur la partition', false);
+    else {
+      const tn = dig.n, f0 = tn.f, f2 = f0 === 3 ? 2 : 3, cx = cr.left + (dig.x0 + dig.x1) / 2, cy = cr.top + (dig.y0 + dig.y1) / 2;
+      cv.dispatchEvent(new PointerEvent('pointerdown', { clientX: cx, clientY: cy, pointerId: 77, bubbles: true }));
+      const t0p = performance.now(); while ($('#p-fpick').hidden && performance.now() - t0p < 5000) await new Promise(res => setTimeout(res, 50));
+      ok('appui long : le choix du doigt s\'ouvre sur ' + tn.fr + ' (doigt ' + f0 + ')', !$('#p-fpick').hidden && $('#p-fpick .on') && +$('#p-fpick .on').dataset.f === f0, Math.round(performance.now() - t0p) + ' ms');
+      cv.dispatchEvent(new PointerEvent('pointerup', { clientX: cx, clientY: cy, pointerId: 77, bubbles: true }));
+      $(`#p-fpick [data-f="${f2}"]`).click();
+      ok('appui long : doigt ' + f2 + ' gardé (localStorage legato-fing-menuet)', $('#p-fpick').hidden && tn.f === f2 && LS.get('fing-menuet', {})[tn.i] === f2);
+      openPiece(menuet);
+      ok('appui long : correction reprise à la réouverture du morceau', P.notes[tn.i].f === f2 && menuet.notes[tn.i].f === f0);
+      openPicker(P.notes[tn.i], 100, 100); $('#p-fpick [data-f="0"]').click();
+      ok('appui long : « Auto » rend le doigté écrit', P.notes[tn.i].f === f0 && !(tn.i in LS.get('fing-menuet', {})));
+    }
+    openPiece(pc); P.mode = 'tempo'; restart(); P.running = true;
+    for (let g = 0; g < 2000 && P.t < -0.5; g++) P.step(1 / 60);
+    draw();
+    const kh = HITS.find(h => h.pri >= 1.5 && h.pri < 2);
+    if (kh) {
+      openPicker(kh.n, 50, 50);
+      const paused = !P.running;
+      $('#p-fpick [data-f="5"]').click();
+      ok('appui long sur une touche : le mode tempo s\'arrête pendant le choix, reprend après', paused && P.running);
+      openPiece(pc);
+      ok('appui long sur une touche (import) : correction gardée', P.notes[kh.n.i].f === 5);
+    } else ok('appui long : une touche touchable au début de l\'import', false);
+
+    // ---------- 7 quinquies. latence : calibrage simulé à 40 ms, puis bilan corrigé ----------
+    show('diag'); calStart(); clearTimeout(CAL.timer);
+    seed = 11;
+    CAL.clicks.forEach((c, i) => {
+      if (i === 9) return;                                    // un clic sans note
+      const v = i === 6 ? 230 : i === 12 ? -160 : 40 + (rnd() * 16 - 8); // deux appuis aberrants
+      calPress(c + v); if (i === 7) calPress(c + v + 30);    // un doublé ignoré
+    });
+    const cal = calFinish();
+    ok('latence : 40 ms simulés mesurés à ± 5 ms, aberrants écartés', Math.abs(SET.latency - 40) <= 5 && cal.out === 2 && cal.n === 9, `${SET.latency} ms, ${cal.n} appuis gardés, ${cal.out} écartés`);
+    ok('latence : affichée dans le diagnostic', $('#c-val').textContent === SET.latency + ' ms');
+    const measured = SET.latency, bilan = lat0 => {
+      SET.latency = lat0; openPiece(menuet); P.hands = 'R'; P.mode = 'tempo'; P.pct = 70; restart(); P.running = true; MIDI.recent = {};
+      const sp2 = 60 / P.bpm, pl = P.notes.filter(n => n.st === 'pend' && P.req(n)).map(n => ({ n, at: n.on + 0.04 / sp2, done: false }));
+      let g = 0; while (!P.done && g++ < 200000) { P.step(1 / 240); for (const p of pl) if (!p.done && P.t >= p.at) { p.done = true; key(p.n.midi); rel(p.n.midi); } }
+      const rr = P.result(), b = rr.dts.reduce((a, x) => a + x, 0) / rr.dts.length; return { b, acc: rr.acc, txt: $('#p-resbox').textContent };
+    };
+    const raw = bilan(0), fixd = bilan(measured);
+    ok('latence : sans correction, 40 ms de retard = « plutôt en retard »', raw.acc === 100 && raw.b > 30 && /plutôt en retard/.test(raw.txt), `+${raw.b.toFixed(1)} ms`);
+    ok('latence : corrigée, « bien en place » et la latence est dite', fixd.acc === 100 && Math.abs(fixd.b) < 8 && /bien en place/.test(fixd.txt) && /latence de \d+ ms déduite/.test(fixd.txt), `${fixd.b.toFixed(1)} ms`);
+    $('#p-res').hidden = true; SET.latency = 0; CAL.last = '';
 
     // ---------- 8. dessin : chaque morceau, les deux vues, du début à la fin ----------
     let errs = 0, frames = 0;

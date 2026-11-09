@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v5 en ligne (2026-11-09)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v6 en ligne (2026-11-09)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,44 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v6 (2026-11-09) : doigtés calculés, correction par appui long, latence, icône
+
+- **Doigtés calculés pour les MIDI importés** (`autoFinger`, appelé dans `build()` quand le morceau
+  vient de `data`) : programmation dynamique, main par main, sur les doigts 1 à 5. La main gauche est
+  calculée comme une main droite en miroir (hauteur `q = -midi`, pouce côté aigu). Groupes = notes de
+  même attaque. Coût d'une note à l'autre (`fingStep`) : écart en demi-tons contre écart de doigts
+  (table `SPAN` confortable / possible par paire, ex. 1-5 jusqu'à 10 / 12), main serrée pénalisée,
+  passage du pouce permis seulement pouce sur la note aiguë et 2/3/4 sur la grave (`CROSS` : coût 3 à 4 +
+  surcoût au-delà de 2 / 4 / 5 demi-tons), même doigt sur deux hauteurs = déplacement, autres
+  croisements quasi interdits ; pouce sur touche noire +2,5 (5e doigt +0,5). Accords : toutes les suites
+  croissantes de doigts (`fingCands`), modèle préféré selon l'écart (`chordTpl` : 1-5 / 1-4 / 1-3 / 1-2
+  pour deux notes, 1-2-3 / 1-3-5 / 1-2-4 pour trois). D'un groupe à l'autre (`fingTrans`) : moyenne
+  graves / aigus ; si une extrémité d'un accord reste en place, la main ne change pas de position ; un
+  déplacement coûte moitié moins après un silence. `ch` (changement de position) = première note,
+  passage du pouce, déplacement ou écart au-delà du possible. Vérifié : gamme de Do MD 12312345 /
+  4321321 et MG 54321321 / 2312345, Do-Mi-Sol 1-3-5 et 5-3-1, octave 1-5 ; Sarabande perso : 164 notes,
+  accords 1-3-5. Sur le Menuet et la Mélodie passés comme imports, 51 et 57 % des doigts tombent comme
+  ceux écrits à la main (le reste : autres choix d'une même position, pas des erreurs flagrantes).
+- **Correction par appui long** (500 ms, `LONG_MS`) sur un chiffre, une touche qui montre un doigt
+  ou une note (qui tombe ou de la partition) : petite fenêtre 1 à 5 + « Auto » (doigté écrit ou
+  calculé). Zones touchables refaites à chaque image (`HITS`, priorité chiffre > touche > note). Le
+  mode tempo s'arrête pendant le choix et reprend après. Gardé en `localStorage`
+  `legato-fing-<id>` = { indice de la note dans `pc.notes` : doigt }, appliqué dans le constructeur
+  de `Player`, aussi pour les morceaux intégrés ; effacé avec l'import.
+- **Latence** (diagnostic, encadré « Latence », lien aussi dans les réglages du passage) : 16 clics
+  à 80 bpm, Simon joue sur les 12 derniers ; décalage appui - clic (horodatage de l'événement MIDI,
+  `evTime`, contre l'heure du clic programmé sur l'horloge de sortie), un appui par clic, médiane après
+  avoir écarté ce qui s'éloigne de plus de max(25 ms, 3 MAD), bornée de -80 à 300 ms, gardée en
+  `SET.latency`. Le mode tempo la retire de l'instant d'appui (`P.input`) et attend d'autant avant de
+  compter une note ratée ; le bilan « en avance / en retard » le dit (« latence de N ms déduite »).
+- **Nouvelle icône** (demande de Simon) : trois noires or qui montent, liées par une liaison violette,
+  sans portée, sur le fond sombre (`tools/build_icons.py`, SVG et PNG depuis la même géométrie).
+- Tests : 63 (17 nouveaux : doigtés calculés sur gamme, accords et imports, Sarabande si le fichier perso
+  est servi, appui long réel par `PointerEvent` puis reprise, latence de 40 ms simulée mesurée à 39 ms
+  avec deux appuis aberrants écartés, bilan « plutôt en retard » sans correction et « bien en place »
+  avec). Vue partition et encadré latence vérifiés en 800 x 360. **Pas essayé sur le vrai P-145**,
+  donc la vraie latence reste à mesurer.
 
 ### v5 (2026-11-09) : son de l'appli et partition plein écran
 
@@ -222,6 +260,12 @@ complète : 7 à 8 sessions (détail par lot dans la section « Ce que ça chang
   `measureText`, `measureClefs` relancée quand Noto Music est chargée), dièses / bémols / bécarres
   dessinés en chemins (`drawAcc`). Noto Music n'est que dans la pile `MUSIC_FONT`, jamais dans la
   police de l'interface.
+- Corrections de doigté rangées par **indice de note** : retoucher les notes d'un morceau intégré
+  (ajout, suppression) décale les corrections gardées sur le téléphone.
+- Latence : un appui de test sans `timeStamp` prend `performance.now()` ; le moteur retire `SET.latency`
+  de `P.t` (pas l'heure de l'événement), comme avant la v6.
+- Les clics du calibrage passent par `beep`, pas `metroClick` : `metroRun` annule tout clic de
+  `METRO.nodes` hors d'un morceau en cours.
 - Métronome : ne jamais programmer un clic avec un retard négatif (il part tout de suite, en
   retard de la latence de sortie). D'où les 250 ms d'avance et les 0,3 s avant le décompte.
 

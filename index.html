@@ -130,6 +130,12 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 .bars{display:flex;gap:4px;align-items:flex-end;height:70px}
 .bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;font-size:10px;color:var(--muted);min-width:0;height:100%}
 .bars i{display:block;width:100%;border-radius:3px 3px 0 0}
+.fpick{position:absolute;z-index:5;background:var(--panel);border:1px solid var(--rh);border-radius:14px;padding:8px 10px;display:grid;gap:7px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.fpick small{color:var(--muted);font-size:12px;white-space:nowrap}
+.fpick div{display:flex;gap:6px}
+.fpick button{min-width:40px;height:40px;border:0;border-radius:10px;background:var(--chip);font-weight:700;font-size:17px}
+.fpick button.on{background:var(--rh);color:#1a1206}
+.fpick button[data-f="0"]{font-size:12.5px;font-weight:600;padding:0 10px}
 </style>
 </head>
 <body>
@@ -177,6 +183,9 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
       <p class="txt" id="d-sendmsg"></p></div>
     <div class="box"><h3>Dernière note</h3><div><span class="big" id="d-note">-</span> <span class="txt" id="d-midi"></span></div>
       <div class="vel"><b id="d-vel"></b></div><p class="txt">vélocité <span id="d-velv">-</span> / 127 · pédale <b id="d-ped">relevée</b></p></div>
+    <div class="box"><h3>Latence</h3><div><span class="big" id="c-val"></span> <span class="txt" id="c-info"></span></div>
+      <p class="txt">Joue une note du piano sur chaque clic à partir du 5e (les 4 premiers donnent le tempo), 12 fois. Legato mesure ton décalage et le retire quand il juge ton rythme en mode tempo.</p>
+      <div class="row"><button class="btn p" type="button" id="c-go">Calibrer la latence</button><button class="btn" type="button" id="c-zero">Remettre à 0</button></div></div>
     <div class="box" style="grid-column:1/-1"><h3>Brancher le P-145</h3>
       <ol class="help">
         <li>Câble USB-C (téléphone) vers USB-B (piano, prise USB TO HOST), un câble de données, pas seulement de charge.</li>
@@ -222,22 +231,25 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
         <select id="p-vw"><option value="fall">les notes qui tombent</option><option value="score">la partition qui défile</option></select></label>
       <label class="fld" for="p-acc"><span>L'autre main est jouée par</span>
         <select id="p-acc"><option value="piano">le piano (sortie MIDI)</option><option value="phone">le téléphone</option><option value="off">personne</option></select></label>
+      <p class="txt" style="margin:0">Appui long sur un doigté (touche, note) pour le corriger. Latence déduite : <b id="p-lat"></b> · <button class="lnk" type="button" data-go="diag">calibrer</button></p>
       <div class="row"><button class="btn" type="button" id="p-fs">Plein écran</button><button class="btn p" type="button" id="p-close">Fermer</button></div>
       <p class="txt" id="p-src"></p>
     </div>
+    <div class="fpick" id="p-fpick" hidden><small id="p-fpt"></small><div>
+      <button type="button" data-f="1">1</button><button type="button" data-f="2">2</button><button type="button" data-f="3">3</button><button type="button" data-f="4">4</button><button type="button" data-f="5">5</button><button type="button" data-f="0" title="Revenir au doigté proposé">Auto</button></div></div>
     <div class="res" id="p-res" hidden><div class="box" id="p-resbox"></div></div>
   </div>
 </div>
 
 <script>
 'use strict';
-const APP_VERSION = '5', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '6', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('legato-' + k, JSON.stringify(v)); return true; } catch (e) { return false; } },
 };
-const SET = Object.assign({ fing: 'all', hands: true, accomp: 'piano', view: 'fall', metro: false, sound: 'other', kbd: true }, LS.get('set', {}));
+const SET = Object.assign({ fing: 'all', hands: true, accomp: 'piano', view: 'fall', metro: false, sound: 'other', kbd: true, latency: 0 }, LS.get('set', {}));
 const saveSet = () => LS.set('set', SET);
 
 /* ---------- notes ---------- */
@@ -369,8 +381,93 @@ function build(pc) {
   if (pc.key === undefined) pc.key = guessKey(pc.data);
   pc.notes = pc.rh ? voice(pc.rh, 'R').concat(voice(pc.lh, 'L')).sort((a, b) => a.on - b.on)
     : pc.data.map(([midi, on, dur, h]) => Object.assign(spell(midi, pc.key), { midi, hand: h ? 'R' : 'L', on, dur, f: 0, ch: false }));
+  if (!pc.rh) autoFinger(pc.notes);
   pc.measures = Math.ceil(Math.max(...pc.notes.map(n => n.on + n.dur)) / pc.num - 1e-6);
   return pc;
+}
+
+/* ---------- doigtés calculés (fichiers importés) : programmation dynamique sur les doigts 1 à 5, main par main ----------
+   La main gauche est traitée comme une main droite en miroir (hauteur q = -midi) : mêmes règles, pouce du côté aigu. */
+// écart confortable / possible en demi-tons entre deux doigts, du grave (premier doigt) vers l'aigu
+const SPAN = { 12: [5, 8], 13: [7, 10], 14: [9, 11], 15: [10, 12], 23: [3, 5], 24: [5, 7], 25: [7, 9], 34: [2, 4], 35: [4, 6], 45: [2, 4] };
+const CROSS = { 2: [3.5, 2], 3: [3, 4], 4: [4, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart sans surcoût
+// coût d'aller de la note a (doigt fa) à la note b (doigt fb) ; kind 1 = la main se déplace (changement de position)
+function fingStep(a, fa, b, fb) {
+  const d = b.q - a.q, D = Math.abs(d);
+  if (!d) return [fa === fb ? 0 : 1, 0];
+  if (fa === fb) return [6 + D * 0.5, 1];
+  const lo = d > 0 ? fa : fb, hi = d > 0 ? fb : fa; // doigt sur la note grave, doigt sur la note aiguë
+  if (lo < hi) {
+    const [cm, rm] = SPAN[lo * 10 + hi];
+    let c = Math.max(0, hi - lo - D) * 0.6;
+    if (D > rm) return [c + 6 + (D - rm) * 0.5, 1];
+    return [c + Math.max(0, D - cm) * 1.5, 0];
+  }
+  if (hi === 1 && lo <= 4) return [CROSS[lo][0] + Math.max(0, D - CROSS[lo][1]) * 1.5, 1];
+  return [20 + D, 1];
+}
+const keyCost = (f, black) => black ? (f === 1 ? 2.5 : f === 5 ? 0.5 : 0) : 0;
+function chordTpl(q) {
+  const k = q.length, s = q[k - 1] - q[0];
+  if (k === 2) return s >= 7 ? [1, 5] : s >= 5 ? [1, 4] : s >= 3 ? [1, 3] : [1, 2];
+  if (k === 3) return s <= 4 ? [1, 2, 3] : s <= 7 || q[1] - q[0] >= q[2] - q[1] ? [1, 3, 5] : [1, 2, 4];
+  if (k === 4) return s <= 9 ? [1, 2, 3, 5] : [1, 2, 4, 5];
+  return [1, 2, 3, 4, 5];
+}
+// doigtés possibles d'un groupe de notes (du grave à l'aigu dans le repère de la main) : toutes les suites croissantes de doigts
+function fingCands(ns) {
+  const k = ns.length;
+  if (k > 5) return [{ f: ns.map((_, i) => 1 + Math.round(4 * i / (k - 1))), cost: 0 }];
+  const out = [], tpl = k > 1 ? chordTpl(ns.map(n => n.q)).join() : '';
+  const rec = (start, acc) => {
+    if (acc.length === k) {
+      let cost = acc.reduce((s, f, i) => s + keyCost(f, ns[i].black), 0);
+      for (let i = 1; i < k; i++) { const D = ns[i].q - ns[i - 1].q, [cm, rm] = SPAN[acc[i - 1] * 10 + acc[i]]; cost += D > rm ? 30 : Math.max(0, D - cm) * 1.5 + Math.max(0, acc[i] - acc[i - 1] - D) * 0.6; }
+      if (k > 1 && acc.join() !== tpl) cost += 1.2;
+      out.push({ f: acc.slice(), cost }); return;
+    }
+    for (let f = start; f <= 5 - (k - acc.length - 1); f++) { acc.push(f); rec(f + 1, acc); acc.pop(); }
+  };
+  rec(1, []);
+  return out;
+}
+// d'un groupe à l'autre : note seule contre note seule, sinon la moyenne des graves entre eux et des aigus entre eux ;
+// un déplacement coûte moitié moins pendant un silence
+function fingTrans(A, ca, B, cb) {
+  const a = A.ns.length - 1, b = B.ns.length - 1, slow = B.on - A.end >= 0.25 ? 0.5 : 1;
+  const x = fingStep(A.ns[0], ca.f[0], B.ns[0], cb.f[0]), y = a || b ? fingStep(A.ns[a], ca.f[a], B.ns[b], cb.f[b]) : x;
+  // accord : si une extrémité reste en place, l'autre s'écarte ou se resserre sans que la main change de position
+  if ((a || b) && (!x[0] && !x[1] || !y[0] && !y[1])) return [Math.min(2, x[0] + y[0]), 0];
+  const kind = Math.max(x[1], y[1]);
+  return [(x[0] + y[0]) / 2 * (kind ? slow : 1), kind];
+}
+function autoFinger(notes) {
+  for (const h of ['R', 'L']) {
+    const evs = [];
+    for (const n of notes) if (n.hand === h) {
+      const e = evs[evs.length - 1], x = { n, q: h === 'R' ? n.midi : -n.midi, black: isBlack(n.midi) };
+      if (e && Math.abs(n.on - e.on) < 0.02) e.ns.push(x); else evs.push({ on: n.on, ns: [x] });
+    }
+    if (!evs.length) continue;
+    for (const e of evs) { e.ns.sort((a, b) => a.q - b.q); e.end = Math.max(...e.ns.map(x => x.n.on + x.n.dur)); e.cands = fingCands(e.ns); }
+    const tbl = [evs[0].cands.map(c => ({ cost: c.cost, back: -1 }))];
+    for (let i = 1; i < evs.length; i++) {
+      const A = evs[i - 1], B = evs[i];
+      tbl.push(B.cands.map(cb => {
+        let best = { cost: Infinity, back: 0 };
+        A.cands.forEach((ca, j) => { const c = tbl[i - 1][j].cost + fingTrans(A, ca, B, cb)[0]; if (c < best.cost) best = { cost: c, back: j }; });
+        best.cost += cb.cost; return best;
+      }));
+    }
+    const last = tbl[tbl.length - 1];
+    let j = last.indexOf(last.reduce((m, c) => c.cost < m.cost ? c : m));
+    for (let i = evs.length - 1; i >= 0; i--) { evs[i].pick = evs[i].cands[j]; j = tbl[i][j].back; }
+    evs.forEach((e, i) => {
+      const ch = !i || fingTrans(evs[i - 1], evs[i - 1].pick, e, e.pick)[1] > 0;
+      e.ns.forEach((x, k) => { x.n.f = e.pick.f[k]; x.n.ch = ch; });
+    });
+  }
+  return notes;
 }
 
 /* ---------- partition : gravure, une fois par morceau (en temps et en degrés, pas en pixels) ---------- */
@@ -533,12 +630,16 @@ function demoNote(n, durSec, delay) {
 
 /* ---------- métronome : clics programmés à l'avance sur l'horloge audio, calés sur le temps du moteur ---------- */
 const METRO = { next: null, nodes: [], log: [] }, METRO_AHEAD = 0.25; // s : couvre un à-coup de la page
-function metroClick(b, at, accent) {
+function beep(at, accent) {
   const a = ac(), o = a.createOscillator(), g = a.createGain();
   o.type = 'triangle'; o.frequency.value = accent ? 1760 : 1175;
   g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(accent ? 0.55 : 0.32, at + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
   o.connect(g).connect(a.destination); o.start(at); o.stop(at + 0.08);
+  return o;
+}
+function metroClick(b, at, accent) {
+  const o = beep(at, accent);
   METRO.nodes.push({ b, o, at }); METRO.log.push({ b, at, accent }); if (METRO.log.length > 64) METRO.log.shift();
 }
 // arrête les clics programmés qui n'ont pas encore sonné, et revient au premier d'entre eux
@@ -578,7 +679,7 @@ function onMidi(e) {
   const [s, a, b] = e.data;
   if (s >= 0xF8) return;
   const hi = s & 0xF0;
-  if (hi === 0x90 && b > 0) { if (performance.now() - (MIDI.recent[a] || 0) < 80) return; noteOn(a, b, 'midi'); }
+  if (hi === 0x90 && b > 0) { if (performance.now() - (MIDI.recent[a] || 0) < 80) return; noteOn(a, b, 'midi', evTime(e)); }
   else if (hi === 0x80 || (hi === 0x90 && b === 0)) noteOff(a);
   else if (hi === 0xB0 && a === 64) { MIDI.ped = b >= 64; logMsg(`CC 64      pédale   ${String(b).padStart(3)}`); diagNote(); }
   else logMsg([...e.data].map(x => x.toString(16).padStart(2, '0')).join(' '));
@@ -589,8 +690,11 @@ function send(m, vel, ms, delayMs) {
   MIDI.recent[m] = at;
   MIDI.outs.forEach(o => { try { o.send([0x90, m, vel], at); o.send([0x80, m, 0], at + Math.max(60, ms - 25)); } catch (e) {} });
 }
-function noteOn(m, vel, src) {
+// heure d'un événement sur l'horloge de performance.now() (celle des clics programmés) ; sinon maintenant
+function evTime(e) { const n = performance.now(), t = e && e.timeStamp; return t > n - 5000 && t <= n + 5 ? t : n; }
+function noteOn(m, vel, src, at) {
   MIDI.down.add(m);
+  if (CAL.on) calPress(at === undefined ? performance.now() : at);
   if (src !== 'midi') { synth(m, 0.7, vel); }
   logMsg(`note on   ${String(m).padStart(3)} ${FRM[m % 12].padEnd(5)} vél ${vel}`);
   diagNote(m, vel);
@@ -614,9 +718,13 @@ function midiChanged() {
 
 /* ---------- moteur de jeu ---------- */
 const EARLY = 0.18, LATE = 0.25, AHEAD = 0.1; // s : les notes jouées par l'appli partent un peu en avance, horodatées
+const lat = () => Math.max(0, SET.latency || 0) / 1000;
 class Player {
   constructor(pc) {
-    this.pc = pc; this.notes = pc.notes.map(n => Object.assign({}, n)); this.score = engrave(this.notes, pc);
+    this.pc = pc; this.notes = pc.notes.map((n, i) => Object.assign({}, n, { i }));
+    const fix = LS.get('fing-' + pc.id, {});
+    for (const i in fix) if (this.notes[i] && fix[i] >= 1 && fix[i] <= 5) this.notes[i].f = fix[i];
+    this.score = engrave(this.notes, pc);
     const st = LS.get('p-' + pc.id, {});
     this.hands = st.hands || pc.hands; this.pct = st.pct || pc.pct; this.mode = st.mode || 'wait';
     this.loop = false; this.flashes = [];
@@ -656,7 +764,7 @@ class Player {
     } else {
       for (const n of this.notes) if (n.st === 'pend' && !this.req(n) && n.on <= nt + AHEAD / spb) this.auto(n, Math.max(0, (n.on - nt) * spb));
       for (const n of this.notes) if (n.st === 'pend' && this.req(n) && n.on <= nt + AHEAD / spb) this.guide(n, Math.max(0, (n.on - nt) * spb));
-      const late = LATE / spb;
+      const late = (LATE + lat()) / spb;
       for (const n of this.notes) if (n.st === 'pend' && this.req(n) && nt > n.on + late) n.st = 'miss';
     }
     this.t = nt;
@@ -686,11 +794,12 @@ class Player {
       return;
     }
     if (!this.running) return;
-    const early = EARLY * this.bpm / 60, late = LATE * this.bpm / 60;
+    // la latence mesurée (piano, câble, oreille) est retirée de l'instant d'appui
+    const early = EARLY * this.bpm / 60, late = LATE * this.bpm / 60, t = this.t - (SET.latency || 0) / 1000 * this.bpm / 60;
     let best = null;
-    for (const n of this.notes) if (n.st === 'pend' && this.req(n) && n.midi === m && this.t >= n.on - early && this.t <= n.on + late
-      && (!best || Math.abs(n.on - this.t) < Math.abs(best.on - this.t))) best = n;
-    if (best) { best.st = 'ok'; best.vel = vel; best.dt = (this.t - best.on) * 60000 / this.bpm; this.flash(m, 'ok'); }
+    for (const n of this.notes) if (n.st === 'pend' && this.req(n) && n.midi === m && t >= n.on - early && t <= n.on + late
+      && (!best || Math.abs(n.on - t) < Math.abs(best.on - t))) best = n;
+    if (best) { best.st = 'ok'; best.vel = vel; best.dt = (t - best.on) * 60000 / this.bpm; this.flash(m, 'ok'); }
     else { this.extra++; this.flash(m, 'err'); }
   }
   flash(m, k) { this.flashes.push({ m, k, until: performance.now() + 300 }); }
@@ -748,15 +857,18 @@ function fingShow(n) { return n.f && (SET.fing === 'all' || (SET.fing === 'chang
 function keyStates() {
   const s = {}, t = P.t, now = performance.now();
   for (const n of P.notes) if ((n.st === 'ok' || n.st === 'err' || n.st === 'auto') && t >= n.on - 0.01 && t < n.on + n.dur - 0.06)
-    s[n.midi] = { k: n.st === 'auto' ? 'a' + n.hand : n.st, f: P.mode === 'demo' && fingShow(n) ? n.f : 0, hand: n.hand };
+    s[n.midi] = { k: n.st === 'auto' ? 'a' + n.hand : n.st, f: P.mode === 'demo' && fingShow(n) ? n.f : 0, hand: n.hand, n };
   for (const n of P.notes) if (n.st === 'pend' && P.req(n) && !s[n.midi] && n.on - t <= 0.95)
-    s[n.midi] = { k: 'h' + n.hand, f: fingShow(n) ? n.f : 0, hand: n.hand };
+    s[n.midi] = { k: 'h' + n.hand, f: fingShow(n) ? n.f : 0, hand: n.hand, n };
   for (const m of MIDI.down) if (!s[m] || s[m].k[0] === 'h') s[m] = Object.assign({}, s[m], { k: 'tap' });
   P.flashes = P.flashes.filter(f => f.until > now);
   for (const f of P.flashes) s[f.m] = Object.assign({}, s[f.m], { k: f.k });
   return s;
 }
-function draw() { if (SET.view === 'score') drawScore(); else drawFall(); }
+// zones touchables pour l'appui long (chiffre de doigté > touche > note), refaites à chaque image
+let HITS = [];
+const hit = (x0, y0, x1, y1, n, pri) => HITS.push({ x0, y0, x1, y1, n, pri });
+function draw() { HITS = []; if (SET.view === 'score') drawScore(); else drawFall(); }
 function drawFall() {
   const W = KB.W, H = KB.H, hy = KB.hitY, ppb = hy / (2.4 * P.bpm / 60), t = P.t;
   ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
@@ -783,8 +895,10 @@ function drawFall() {
     ctx.globalAlpha = P.mode === 'demo' ? 1 : n.st === 'auto' ? 0.45 : P.req(n) ? 1 : 0.38;
     ctx.fillStyle = n.st === 'ok' ? COL.ok : n.st === 'err' || n.st === 'miss' ? COL.err : COL[n.hand];
     ctx.beginPath(); ctx.roundRect(x, y1 + 2, w, Math.max(4, y2 - y1 - 4), Math.min(6, w / 3)); ctx.fill();
+    hit(x, Math.max(0, y1), x + w, Math.min(hy, y2), n, 1);
     if (fingShow(n) && w >= 12) {
       const r = Math.min(w / 2 - 2, 9.5), cy = y2 - r - 5;
+      hit(x + w / 2 - r - 8, cy - r - 8, x + w / 2 + r + 8, cy + r + 8, n, 2);
       ctx.fillStyle = 'rgba(10,12,18,.32)'; ctx.beginPath(); ctx.arc(x + w / 2, cy, r, 0, 7); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(n.f), x + w / 2, cy + 0.5);
@@ -810,8 +924,11 @@ function drawKeys(st) {
     ctx.beginPath(); ctx.roundRect(p.x, hy - 1, p.w, bh, [0, 0, 3, 3]); ctx.fill();
   }
   for (const m in st) {
-    const s = st[m], p = KB.pos[m]; if (!s.f || !p) continue;
+    const s = st[m], p = KB.pos[m]; if (!s.n || !p) continue;
+    hit(p.x, hy, p.x + p.w, hy + (p.black ? bh : kh), s.n, p.black ? 1.6 : 1.5);
+    if (!s.f) continue;
     const r = Math.min(p.w * 0.4, 11), cy = p.black ? hy + bh - r - 5 : hy + kh - r - (p.w > 16 ? 17 : 6);
+    hit(p.x + p.w / 2 - r - 6, cy - r - 6, p.x + p.w / 2 + r + 6, cy + r + 6, s.n, 2);
     ctx.fillStyle = COL[s.hand]; ctx.strokeStyle = COL.bg; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(p.x + p.w / 2, cy, r, 0, 7); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#10131a'; ctx.font = `700 ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -915,6 +1032,7 @@ function drawUnit(u, x) {
   ctx.globalAlpha = unitAlpha(u);
   for (const n of u.notes) {
     const hx = x + n.dx * 1.14 * sp, ny = y(n.step), lx = .95 * sp;
+    hit(hx - sp, ny - .8 * sp, hx + sp, ny + .8 * sp, n, 1);
     ctx.strokeStyle = INK.ink; ctx.lineWidth = lw;
     for (let s = S.bot - 2; s >= n.step; s -= 2) ln(hx - lx, y(s), hx + lx, y(s));
     for (let s = S.top + 2; s <= n.step; s += 2) ln(hx - lx, y(s), hx + lx, y(s));
@@ -957,7 +1075,7 @@ function drawDigits(u, x) {
     top = bottom - (ns.length - 1) * lh;
   } else top = stem && !u.up ? y(u.hi) - 1.35 * sp - (ns.length - 1) * lh : y(u.lo) + 1.5 * sp;
   ctx.font = `700 ${Math.round(sp * 1.1)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = INK[u.hand];
-  ns.slice().reverse().forEach((n, i) => ctx.fillText(String(n.f), x, top + i * lh));
+  ns.slice().reverse().forEach((n, i) => { ctx.fillText(String(n.f), x, top + i * lh); hit(x - .9 * sp, top + i * lh - lh / 2, x + .9 * sp, top + i * lh + lh / 2, n, 2); });
 }
 function drawScore() {
   const W = KB.W, hy = KB.hitY, sp = SC.sp, num = P.pc.num, X = on => SC.ph + (on - P.t) * SC.ppb;
@@ -994,6 +1112,7 @@ function drawScore() {
   for (const top of [SC.tTop, SC.bTop]) { ctx.fillText(String(P.pc.tn || P.pc.num), SC.timeX, top + 1.05 * sp); ctx.fillText(String(P.pc.td || 4), SC.timeX, top + 3.05 * sp); }
   ctx.fillStyle = COL.R; if (P.wait) { ctx.shadowColor = COL.R; ctx.shadowBlur = 10; }
   ctx.fillRect(SC.ph - 1, y0, 2, y1 - y0); ctx.shadowBlur = 0;
+  HITS = HITS.filter(h => h.x0 > pw);
   if (KB.kh) drawKeys(keyStates());
 }
 
@@ -1028,7 +1147,7 @@ function syncBar() {
   const so = $('#p-sound'); so.innerHTML = SOUNDS[SET.sound][1]; so.title = SOUNDS[SET.sound][0] + ' (toucher pour changer)'; so.setAttribute('aria-label', so.title); so.classList.toggle('on', SET.sound === 'all');
   const kb = $('#p-kbd'); kb.hidden = SET.view !== 'score'; kb.innerHTML = KBD_ICON; kb.classList.toggle('on', !SET.kbd);
   kb.title = SET.kbd ? 'Masquer le clavier (plus de place pour la partition)' : 'Afficher le clavier'; kb.setAttribute('aria-label', kb.title);
-  $('#p-met').checked = SET.metro; $('#p-vw').value = SET.view;
+  $('#p-met').checked = SET.metro; $('#p-vw').value = SET.view; $('#p-lat').textContent = (SET.latency || 0) + ' ms';
   $('#p-play').textContent = P.running && !P.done ? '⏸' : '▶';
   $('#p-start').hidden = !(P.mode === 'tempo' && !P.running && !P.done);
   $('#p-go').textContent = P.t > P.t0 - P.pc.num ? '▶ Reprendre' : '▶ Lancer · une mesure de décompte';
@@ -1047,7 +1166,7 @@ function showResult(r) {
   $('#p-resbox').innerHTML = `<h3>Bilan · ${P.pc.title} · mes. ${P.m0}-${P.m1} · ${P.hands === 'B' ? '2 mains' : P.hands === 'R' ? 'main droite' : 'main gauche'}</h3>
     <div class="mets">
       <div class="met"><span>Justesse</span><b>${r.acc} %</b><small>${r.ok} / ${r.tot} notes${r.extra ? ' · ' + r.extra + ' fausses notes' : ''}</small></div>
-      ${P.mode === 'tempo' && r.dts.length ? `<div class="met"><span>Rythme</span><b>± ${abs} ms</b><small>${Math.abs(bias) < 15 ? 'bien en place' : bias < 0 ? 'plutôt en avance' : 'plutôt en retard'}</small></div>` : `<div class="met"><span>Rythme</span><b>-</b><small>mesuré en mode tempo</small></div>`}
+      ${P.mode === 'tempo' && r.dts.length ? `<div class="met"><span>Rythme</span><b>± ${abs} ms</b><small>${Math.abs(bias) < 15 ? 'bien en place' : bias < 0 ? 'plutôt en avance' : 'plutôt en retard'}${SET.latency ? ' · latence de ' + SET.latency + ' ms déduite' : ''}</small></div>` : `<div class="met"><span>Rythme</span><b>-</b><small>mesuré en mode tempo</small></div>`}
       ${both ? `<div class="met"><span>Équilibre</span><b>MG ${r.vL} · MD ${r.vR}</b><small>${bal}</small></div>` : ''}
     </div>
     <div class="bars">${per.map(m => { const v = r.per[m].o / r.per[m].t; return `<div><i style="height:${Math.max(4, v * 52)}px;background:${v >= 0.9 ? COL.ok : COL.err}"></i>${m}</div>`; }).join('')}</div>
@@ -1081,7 +1200,7 @@ function renderDiag() {
       + (MIDI.outs.length ? MIDI.outs.map(o => `<p class="dev">● Sortie : <b>${esc(o.name)}</b></p>`).join('') : '<p class="dev txt">Aucune sortie MIDI : l\'autre main sera jouée par le téléphone.</p>');
   $('#d-devs').innerHTML = devs;
   $('#d-log').textContent = MIDI.log.join('\n');
-  diagNote();
+  diagNote(); calShow();
 }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let lastNote = null;
@@ -1146,7 +1265,7 @@ function renderHome() {
   $('#h-pieces-n').textContent = PIECES.length + ' pièces · domaine public';
   $('#g-pieces').innerHTML = PIECES.slice().sort((a, b) => a.lvl - b.lvl).map(p => progRow(p)).join('');
   const im = imports();
-  $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI importé garde son tempo, sa mesure et son armure ; pas encore de doigtés.</p>';
+  $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI importé garde son tempo, sa mesure et son armure ; ses doigtés sont calculés, corrigeables par appui long.</p>';
   const min = Math.floor((practice[dayKey(new Date())] || 0) / 60), st = streak();
   $('#h-min').textContent = min + ' / ' + GOAL_MIN + ' min';
   $('#h-ring').setAttribute('stroke-dasharray', (Math.min(1, min / GOAL_MIN) * 119.4).toFixed(1) + ' 119.4'); $('#h-ring').style.opacity = min ? 1 : 0;
@@ -1164,12 +1283,13 @@ function show(v) {
   if (v !== 'play' && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   if (v === 'home') { savePractice(); renderHome(); }
   if (v === 'diag') renderDiag();
+  if (v !== 'play') closePicker();
   window.scrollTo(0, 0);
 }
 document.addEventListener('click', e => {
   const go = e.target.closest('[data-go]'); if (go) { show(go.dataset.go); return; }
   const del = e.target.closest('[data-del]');
-  if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); renderHome(); return; }
+  if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); try { localStorage.removeItem('legato-fing-' + del.dataset.del); } catch (err) {} renderHome(); return; }
   const o = e.target.closest('[data-open]'); if (o && findPiece(o.dataset.open)) openPiece(findPiece(o.dataset.open));
 });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open]')) { e.preventDefault(); e.target.click(); } });
@@ -1236,12 +1356,98 @@ document.addEventListener('visibilitychange', () => {
 /* ---------- claviers de secours : écran et ordinateur ---------- */
 const ptr = {};
 cv.addEventListener('pointerdown', e => {
-  const r = cv.getBoundingClientRect(), m = keyAt(e.clientX - r.left, e.clientY - r.top);
+  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, m = keyAt(x, y);
+  closePicker();
+  const h = hitAt(x, y);
+  if (h) LP = { id: e.pointerId, x, y, timer: setTimeout(() => { LP = null; openPicker(h.n, x, y); }, LONG_MS) };
   if (m === null) return;
-  ptr[e.pointerId] = m; cv.setPointerCapture(e.pointerId); noteOn(m, 80, 'screen');
+  ptr[e.pointerId] = m; try { cv.setPointerCapture(e.pointerId); } catch (err) {} noteOn(m, 80, 'screen', evTime(e));
 });
-const ptrUp = e => { if (ptr[e.pointerId] !== undefined) { noteOff(ptr[e.pointerId]); delete ptr[e.pointerId]; } };
+cv.addEventListener('pointermove', e => { if (LP && LP.id === e.pointerId) { const r = cv.getBoundingClientRect(); if (Math.hypot(e.clientX - r.left - LP.x, e.clientY - r.top - LP.y) > 12) cancelLong(); } });
+const ptrUp = e => { if (LP && LP.id === e.pointerId) cancelLong(); if (ptr[e.pointerId] !== undefined) { noteOff(ptr[e.pointerId]); delete ptr[e.pointerId]; } };
 cv.addEventListener('pointerup', ptrUp); cv.addEventListener('pointercancel', ptrUp);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+/* ---------- correction d'un doigté : appui long sur le chiffre, la touche ou la note ; gardée par morceau ---------- */
+const LONG_MS = 500; let LP = null, PK = null;
+function cancelLong() { if (LP) clearTimeout(LP.timer); LP = null; }
+function hitAt(x, y) {
+  let best = null, bd = 0;
+  for (const h of HITS) if (x >= h.x0 && x <= h.x1 && y >= h.y0 && y <= h.y1) {
+    const d = Math.hypot(x - (h.x0 + h.x1) / 2, y - (h.y0 + h.y1) / 2);
+    if (!best || h.pri > best.pri || (h.pri === best.pri && d < bd)) { best = h; bd = d; }
+  }
+  return best;
+}
+function openPicker(n, x, y) {
+  if (!P) return;
+  PK = { n, resume: P.mode === 'tempo' && P.running && !P.done };
+  if (PK.resume) { P.running = false; syncBar(); }
+  const el = $('#p-fpick'), st = $('#stage').getBoundingClientRect();
+  $('#p-fpt').textContent = `Doigt pour ${n.fr} · ${n.hand === 'R' ? 'main droite' : 'main gauche'} · mes. ${Math.floor(n.on / P.pc.num + 1e-6) + 1}`;
+  el.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.f === n.f));
+  el.hidden = false;
+  el.style.left = Math.max(6, Math.min(st.width - el.offsetWidth - 6, x - el.offsetWidth / 2)) + 'px';
+  el.style.top = Math.max(6, Math.min(st.height - el.offsetHeight - 6, y - el.offsetHeight - 16)) + 'px';
+}
+function closePicker() {
+  if (!PK) return;
+  $('#p-fpick').hidden = true;
+  if (PK.resume && P && !P.done) { P.running = true; syncBar(); }
+  PK = null;
+}
+// f = 0 : revenir au doigté du morceau (écrit ou calculé)
+function setFinger(n, f) {
+  const k = 'fing-' + P.pc.id, fix = LS.get(k, {});
+  if (f) { fix[n.i] = f; n.f = f; } else { delete fix[n.i]; n.f = P.pc.notes[n.i].f; }
+  if (Object.keys(fix).length) LS.set(k, fix); else try { localStorage.removeItem('legato-' + k); } catch (e) {}
+}
+$('#p-fpick').addEventListener('click', e => {
+  const b = e.target.closest('[data-f]'); if (!b || !PK) return;
+  setFinger(PK.n, +b.dataset.f); toast(+b.dataset.f ? 'Doigt ' + b.dataset.f + ' gardé pour ce morceau' : 'Doigté proposé remis'); closePicker();
+});
+
+/* ---------- latence : une note sur chaque clic, on garde la médiane du décalage sans les valeurs aberrantes ---------- */
+const CAL = { on: false, clicks: [], offs: {}, timer: 0, tick: 0, last: '' }, CAL_N = 16, CAL_LEAD = 4, CAL_SPB = 0.75;
+function calStart() {
+  ac(); calStop(); CAL.on = true; CAL.offs = {}; CAL.clicks = [];
+  const t0 = performance.now();
+  for (let i = 0; i < CAL_N; i++) { const d = 0.6 + i * CAL_SPB; CAL.clicks.push(t0 + d * 1000); beep(acAt(d), i % 4 === 0); }
+  CAL.timer = setTimeout(calFinish, (0.6 + CAL_N * CAL_SPB + 0.5) * 1000);
+  CAL.tick = setInterval(calShow, 120); calShow();
+}
+function calStop() { clearTimeout(CAL.timer); clearInterval(CAL.tick); CAL.on = false; }
+function calPress(at) {
+  let i = 0;
+  CAL.clicks.forEach((c, k) => { if (Math.abs(at - c) < Math.abs(at - CAL.clicks[i])) i = k; });
+  const off = at - CAL.clicks[i];
+  if (i >= CAL_LEAD && Math.abs(off) < CAL_SPB * 500 && !(i in CAL.offs)) CAL.offs[i] = off;
+}
+const median = a => { const s = a.slice().sort((x, y) => x - y), k = s.length >> 1; return s.length % 2 ? s[k] : (s[k - 1] + s[k]) / 2; };
+function calResult(offs) {
+  if (offs.length < 4) return null;
+  const m = median(offs), mad = median(offs.map(x => Math.abs(x - m))), keep = offs.filter(x => Math.abs(x - m) <= Math.max(25, 3 * mad));
+  return { ms: Math.round(median(keep)), n: keep.length, out: offs.length - keep.length };
+}
+function calFinish() {
+  calStop();
+  const r = calResult(Object.values(CAL.offs));
+  if (r) { SET.latency = Math.max(-80, Math.min(300, r.ms)); saveSet(); }
+  CAL.last = r ? `médiane de ${r.n} appuis${r.out ? ', ' + r.out + ' écarté' + (r.out > 1 ? 's' : '') : ''}` : 'pas assez d’appuis, recommence';
+  calShow();
+  return r;
+}
+function calShow() {
+  if (view !== 'diag') return;
+  if (CAL.on) {
+    const k = CAL.clicks.filter(c => c <= performance.now()).length;
+    $('#c-val').textContent = k < CAL_LEAD ? 'écoute… ' + (CAL_LEAD - k) : 'joue ! ' + Math.min(CAL_N - CAL_LEAD, k - CAL_LEAD + 1) + ' / ' + (CAL_N - CAL_LEAD);
+    const n = Object.keys(CAL.offs).length; $('#c-info').textContent = n + (n > 1 ? ' appuis mesurés' : ' appui mesuré');
+  } else { $('#c-val').textContent = (SET.latency || 0) + ' ms'; $('#c-info').textContent = CAL.last || 'retirés de chaque appui en mode tempo'; }
+  $('#c-go').textContent = CAL.on ? 'Arrêter' : 'Calibrer la latence';
+}
+$('#c-go').onclick = () => { if (CAL.on) { calStop(); CAL.last = 'arrêté'; calShow(); } else calStart(); };
+$('#c-zero').onclick = () => { calStop(); SET.latency = 0; saveSet(); CAL.last = 'remise à 0'; calShow(); };
 const KEYMAP = ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK', 'KeyO', 'KeyL', 'KeyP', 'Semicolon'];
 let kbOct = 60; const kbDown = {};
 document.addEventListener('keydown', e => {
