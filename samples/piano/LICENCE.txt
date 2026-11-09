@@ -1,0 +1,4 @@
+Salamander Grand Piano V3 - Alexander Holm - Creative Commons Attribution 3.0 (CC BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
+Fichiers MP3 tels que publiés par Tone.js (https://tonejs.github.io/audio/salamander/), les mêmes que Harmonic Atlas.
+Un échantillon toutes les tierces mineures, de La0 à Do8 ; Legato transpose les notes intermédiaires.

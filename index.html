@@ -228,7 +228,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '3', APP_DATE = '6 novembre 2026';
+const APP_VERSION = '4', APP_DATE = '9 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -250,13 +250,13 @@ function pn(s) {
 const SHARPS = [3, 0, 4, 1, 5, 2, 6], FLATS = [6, 2, 5, 1, 4, 0, 3];
 function keyAlt(k) { const a = [0, 0, 0, 0, 0, 0, 0]; for (let i = 0; i < Math.abs(k); i++) a[(k > 0 ? SHARPS : FLATS)[i]] = Math.sign(k); return a; }
 // épellation d'une hauteur MIDI : la plus proche de la tonalité sur la ligne des quintes (Fa♯ plutôt que Sol♭ en Fa majeur),
-// à égalité des dièses en tonalité à dièses, des bémols en tonalité à bémols
+// à égalité le dièse (sensible du mineur : Do♯ en ré mineur, Fa♯ en sol mineur)
 const FIFTH = [0, 2, 4, -1, 1, 3, 5];
 function spell(m, k) {
   const pc = m % 12; let L = 0, a = 0, best = Infinity;
   for (let l = 0; l < 7; l++) for (const x of [-1, 0, 1]) {
     if ((SEMI[l] + x + 12) % 12 !== pc) continue;
-    const d = Math.abs(FIFTH[l] + 7 * x - (k + 2)) + (x && x !== (k < 0 ? -1 : 1) ? 0.1 : 0);
+    const d = Math.abs(FIFTH[l] + 7 * x - (k + 2)) + (x < 0 ? 0.1 : 0);
     if (d < best) { best = d; L = l; a = x; }
   }
   const o = Math.floor((m - SEMI[L] - a) / 12) - 1;
@@ -290,7 +290,7 @@ function voice(str, hand) {
 
 /* ---------- répertoire ---------- */
 const PIECES = [
-  { id: 'menuet', title: 'Menuet en sol', sub: 'Petzold · BWV Anh. 114 · 1re partie', bpm: 100, num: 3, key: 1, hands: 'R', pct: 70,
+  { id: 'menuet', title: 'Menuet en sol', sub: 'Petzold · BWV Anh. 114 · 1re partie', bpm: 100, num: 3, key: 1, lvl: 2, hands: 'R', pct: 70,
     src: 'Notes : Mutopia Project, Bach-Gesellschaft, domaine public (saisie Allen Garvin). Doigtés : Legato.',
     rh: `D5:5!/1 G4:1/.5 A4:2 B4:3 C5:4 | D5:5/1 G4:1 G4:1 | E5:3!/1 C5:1/.5 D5:2 E5:3 F#5:4 | G5:5/1 G4:1! G4:1 |
       C5:4/1 D5:5/.5 C5:4 B4:3 A4:2 | B4:3/1 C5:4/.5 B4:3 A4:2 G4:1 | F#4:1!/1 G4:2/.5 A4:3 B4:4 G4:2 | A4:3/3 |
@@ -299,16 +299,51 @@ const PIECES = [
     lh: `G3:5!+B3:3+D4:1/2 A3:4/1 | B3:3/3 | C4:2/3 | B3:3/3 | A3:4/3 | G3:5/3 | D4:1/1 B3:3 G3:5 |
       D3:1!/1 D2:5!/.5 C3:2 B2:3 A2:4 | B2:3/2 A2:4/1 | G2:5/1 B2:3 G2:5 | C3:2/3 | B2:3/1 C3:2/.5 B2:3 A2:4 G2:5 |
       A2:4/2 F#2:5!/1 | G2:5/2 B2:3/1 | C3:2/1 D3:1 D2:5! | G2:1!/2 G1:5/1` },
-  { id: 'ode', title: 'Ode à la joie', sub: 'Beethoven · thème simplifié', bpm: 100, num: 4, key: 0, hands: 'R', pct: 80,
+  { id: 'ode', title: 'Ode à la joie', sub: 'Beethoven · thème simplifié', bpm: 100, num: 4, key: 0, lvl: 1, hands: 'R', pct: 80,
     src: 'Thème de la 9e symphonie, domaine public, simplifié en position de Do.',
     rh: `E4:3!/1 E4:3 F4:4 G4:5 | G4:5 F4:4 E4:3 D4:2 | C4:1 C4:1 D4:2 E4:3 | E4:3/1.5 D4:2/.5 D4:2/2 |
       E4:3/1 E4:3 F4:4 G4:5 | G4:5 F4:4 E4:3 D4:2 | C4:1 C4:1 D4:2 E4:3 | D4:2/1.5 C4:1/.5 C4:1/2`,
     lh: `C3:5!/4 | G3:1/4 | C3:5/4 | G3:1/4 | C3:5/4 | G3:1/4 | C3:5/4 | G3:1/2 C3:5/2` },
-  { id: 'clair', title: 'Au clair de la lune', sub: 'Traditionnel', bpm: 100, num: 4, key: 0, hands: 'R', pct: 80,
+  { id: 'clair', title: 'Au clair de la lune', sub: 'Traditionnel', bpm: 100, num: 4, key: 0, lvl: 1, hands: 'R', pct: 80,
     src: 'Air traditionnel, domaine public, en position de Do.',
     rh: `C4:1!/1 C4:1 C4:1 D4:2 | E4:3/2 D4:2/2 | C4:1/1 E4:3 D4:2 D4:2 | C4:1/4 |
       C4:1/1 C4:1 C4:1 D4:2 | E4:3/2 D4:2/2 | C4:1/1 E4:3 D4:2 D4:2 | C4:1/4`,
     lh: `C3:5!/4 | C3:5/2 G3:1/2 | C3:5/2 G3:1/2 | C3:5/4 | C3:5/4 | C3:5/2 G3:1/2 | C3:5/2 G3:1/2 | C3:5/4` },
+  { id: 'menuet-sol-mineur', title: 'Menuet en sol mineur', sub: 'Petzold · BWV Anh. 115', bpm: 100, num: 3, key: -2, lvl: 2, hands: 'R', pct: 70,
+    src: 'Notes : Mutopia Project, Bach-Gesellschaft, domaine public (saisie Allen Garvin). Doigtés : Legato.',
+    rh: `Bb5:5!/1 A5:4 G5:3 | A5:4 D5:1 D5:1 | G5:4 G4:1!/0.5 A4:2 Bb4:3 C5:4 | D5:5/3 | Eb5:3/1 F5:5/0.5 Eb5:4 D5:3
+      C5:2 | D5:4/1 Eb5:5/0.5 D5:4 C5:3 Bb4:2 | C5:3/1 D5:4/0.5 C5:3 Bb4:2 C5:3 | A4:1/3 | Bb5:5!/1 A5:4 G5:3 | A5:4
+      D5:1 D5:1 | G5:4 G4:1!/0.5 A4:2 Bb4:3 C5:4 | D5:5/3 | F5:2!/1 G5:4/0.5 F5:3 Eb5:2 D5:1 | Eb5:2/1 F5:4/0.5
+      Eb5:3 D5:2 C5:1 | D5:2/1 G5:4 C5:1 | D4:1!+F4:3+Bb4:5/3 | D5:5!/1 Bb4:2/0.5 C5:3 D5:4 E5:1! | F5:2/1 G5:3 A5:4
+      | Bb5:5 G5:2/0.5 A5:3 Bb5:4 G5:2 | A5:4/1 G5:3/0.5 A5:4 F5:2/1 | F4:1!/0.5 G4:2 A4:3 Bb4:4 C5:1! D5:2 |
+      Eb5:3/1 D5:2 C5:1 | F5:5 Bb4:2 A4:1 | Bb4:2/3 | G4:1!/1 D5:5/0.5 C5:4 D5:5/1 | G4:1 Eb5:5/0.5 D5:4 Eb5:5/1 |
+      G4:2/0.5 D5:5 F#4:1 C5:4 G4:2 Bb4:3 | A4:2/2 r/1 | D4:1/0.5 E4:2 F#4:3 G4:4 A4:1! Bb4:2 | C5:3/1 Bb4:2 A4:1 |
+      Bb4:2/0.5 C5:3/0.25 D5:4 G4:2/1 F#4:1 | Bb3:1+D4:3+G4:5/3`,
+    lh: `G3:1!/3 | F3:2 | Eb3:4 | D3:5/1 D4:1!/0.5 C4:2 Bb3:3 A3:4 | G3:3+Bb3:1/2 A3:3/1 | Bb3:2/2 G3:3/1 | A3:1 F#3:2
+      G3:1 | D3:5 D4:1!/0.5 C4:2 Bb3:3 A3:4 | G3:1!/3 | F3:2 | Eb3:4 | D3:5/1 D4:1!/0.5 C4:2 B3:3 A3:4 | B3:3+D4:1/2
+      G3:4/1 | C4:1 A3:2 F3:4 | Bb3:2 Eb3:5 F3:3+A3:1 | Bb3:2! Bb2:5!/2 | Bb3:1!/3 | A3:2/1 G3:3 F3:4 | G3:2 E3:3
+      C3:5 | F3:3/2 r/1 | A3:1 G3:2 F3:3 | G3:1 F3:2 Eb3:3 | D3:4 Eb3:3 F3:1 | Bb2:5 D4:1! C4:2 | B3:3+D4:1/3 | C4:2
+      | Bb3:3/1 A3:4 G3:5 | D4:1 A3:3/0.5 G3:1! F#3:2 E3:3 | D3:4/2 r/1 | Eb3:2 D3:3 C3:4 | Bb2:5 C3:4 D3:3 | G3:1
+      G2:5!/2` },
+  { id: 'schumann-melodie', title: 'Mélodie', sub: 'Schumann · Album pour la jeunesse op. 68 n° 1', bpm: 84, num: 4, key: 0, lvl: 3, hands: 'R', pct: 70, clefL: 'G',
+    src: 'Œuvre du domaine public. Notes : Mutopia Project, édition Peters (saisie Philippe Hézaine, CC BY-SA 2.5). Doigtés : Legato.',
+    rh: `E5:5!/1 D5:4 C5:3 B4:2 | A4:1/0.5 C5:3 B4:2 D5:4 C5:3/1 G4:1 | G5:5! F5:4 E5:3 C5:1 | B4:2! F#4:1+A4:3 G4:2
+      r/1 | E5:5! D5:4 C5:3 B4:2 | A4:1/0.5 C5:3 B4:2 D5:4 C5:3/1 G4:1 | G5:5! F5:4 E5:3 C5:1 | B4:2! F#4:1+A4:3
+      G4:2 r/1 | D5:4! C5:3 B4:2 r/1 | F5:5! E5:4 D5:3 r/1 | A5:5! G5:4 F5:3 E5:2 | D5:1/0.5 F5:3 E5:2 G5:4
+      A4:1!+F5:5/0.5 C5:2 B4:1 D5:3 | C5:1+E5:3/1 D5:2 C5:1 B4:2! | A4:1/0.5 C5:3 B4:2 D5:4 C5:3/1 G4:1 | A5:5!
+      G5:4 B4:1+F5:4 C5:1!+E5:3 | D5:2/0.5 F5:4 B4:1 D5:3 C5:2/1 r/1 | D5:4! C5:3 B4:2 r/1 | F5:5! E5:4 D5:3 r/1 |
+      A5:5! G5:4 F5:3 E5:2 | D5:1/0.5 F5:3 E5:2 G5:4 A4:1!+F5:5/0.5 C5:2 B4:1 D5:3 | C5:1+E5:3/1 D5:2 C5:1 B4:2!
+      | A4:1/0.5 C5:3 B4:2 D5:4 C5:3/1 G4:1 | A5:5! G5:4 B4:1+F5:4 C5:1!+E5:3 | D5:2/0.5 F5:4 B4:1 D5:3 C5:2/1`,
+    lh: `C4:5!/0.5 G4:1 F4:2 G4:1 E4:3 G4:1 C4:5 E4:3 | F4:2 D4:4 G4:1 F4:2 E4:3 F4:2 E4:3 D4:4 | E4:3 G4:1 D4:4 G4:1
+      C4:5 G4:1 E4:3 G4:1 | D4:4 G4:1 C4:5 D4:4 B3:5! D4:4 G3:5!/1 | C4:5/0.5 G4:1 F4:2 G4:1 E4:3 G4:1 C4:5 E4:3 |
+      F4:2 D4:4 G4:1 F4:2 E4:3 F4:2 E4:3 D4:4 | E4:3 G4:1 D4:4 G4:1 C4:5 G4:1 E4:3 G4:1 | D4:4 G4:1 C4:5 D4:4 B3:5!
+      D4:4 G3:5!/1 | F4:2/0.5 G4:1 E4:3 G4:1 D4:4 G4:1 F#4:2 G4:1 | D4:4 G4:1 C4:5 G4:1 B3:5! G4:1 F#4:2 G4:1 | F4:2
+      G4:1 E4:3 G4:1 D4:4 G4:1 C4:5 G4:1 | B3:5! G4:1 C4:5 C#4:4 D4:3/1 G4:1 | C4:5/0.5 G4:1 F4:2 G4:1 E4:3 G4:1
+      C4:5 E4:3 | F4:2 D4:4 G4:1 F4:2 E4:3 F4:2 E4:3 C4:5 | F4:2 C5:1! E4:3 C5:1! D4:4 G4:1 C4:5 G4:1 | F4:3 A4:1!
+      G4:2 F4:3 E4:4 G4:2 C4:5 E4:3 | F4:2 G4:1 E4:3 G4:1 D4:4 G4:1 F#4:2 G4:1 | D4:4 G4:1 C4:5 G4:1 B3:5! G4:1
+      F#4:2 G4:1 | F4:2 G4:1 E4:3 G4:1 D4:4 G4:1 C4:5 G4:1 | B3:5! G4:1 C4:5 C#4:4 D4:3/1 G4:1 | C4:5/0.5 G4:1 F4:2
+      G4:1 E4:3 G4:1 C4:5 E4:3 | F4:2 D4:4 G4:1 F4:2 E4:3 F4:2 E4:3 C4:5 | F4:2 C5:1! E4:3 C5:1! D4:4 G4:1 C4:5 G4:1
+      | F4:3 A4:1! G4:2 F4:3 E4:4 G4:2 C4:5/1` },
 ];
 // gammes sur une octave, montée puis descente ; chaque note garde son doigt dans les deux sens
 const SCALES = [
@@ -336,7 +371,7 @@ function build(pc) {
 }
 
 /* ---------- partition : gravure, une fois par morceau (en temps et en degrés, pas en pixels) ---------- */
-const STAFF = { T: { bot: 30, mid: 34, top: 38 }, B: { bot: 18, mid: 22, top: 26 } }; // Mi4-Fa5, Sol2-La3
+const STAFF = { T: { bot: 30, mid: 34, top: 38 }, B: { bot: 18, mid: 22, top: 26 }, BT: { bot: 30, mid: 34, top: 38 } }; // Mi4-Fa5, Sol2-La3 ; BT = portée du bas en clé de sol (clefL: 'G')
 const SYM = [[3.5, 'w', 0, 0], [2.5, 'h', 0, 1], [1.75, 'h', 0, 0], [1.25, 'q', 0, 1], [0.875, 'q', 0, 0], [0.625, 'q', 1, 1], [0.3, 'q', 1, 0], [0, 'q', 2, 0]];
 function engrave(notes, pc) {
   const units = [], beams = [], num = pc.num, ka = keyAlt(pc.key);
@@ -344,7 +379,7 @@ function engrave(notes, pc) {
     let cur = null;
     for (const n of notes) if (n.hand === h) {
       if (cur && Math.abs(n.on - cur.on) < 0.02) cur.notes.push(n);
-      else { cur = { hand: h, st: h === 'R' ? 'T' : 'B', on: n.on, notes: [n] }; units.push(cur); }
+      else { cur = { hand: h, st: h === 'R' ? 'T' : pc.clefL === 'G' ? 'BT' : 'B', on: n.on, notes: [n] }; units.push(cur); }
     }
   }
   units.sort((a, b) => a.on - b.on);
@@ -444,7 +479,33 @@ function acAt(d) {
   const now = ts && ts.contextTime && ts.performanceTime ? ts.contextTime + (performance.now() - ts.performanceTime) / 1000 : a.currentTime;
   return Math.max(a.currentTime, now + (d || 0));
 }
+// piano échantillonné : Salamander Grand Piano (Alexander Holm, CC BY 3.0), les mêmes MP3 que Harmonic Atlas, copiés dans samples/piano/
+// un fichier toutes les tierces mineures (La0 à Do8), transposé au plus proche ; chargé à l'ouverture du 1er morceau, synthèse en attendant
+const PIANO = { buf: {}, state: 'idle' }, PIANO_NAMES = ['C', 'Ds', 'Fs', 'A'];
+function loadPiano() {
+  if (PIANO.state !== 'idle') return;
+  PIANO.state = 'loading';
+  const jobs = [];
+  for (let m = 21; m <= 108; m += 3) {
+    const file = PIANO_NAMES[(m % 12) / 3] + (Math.floor(m / 12) - 1) + '.mp3';
+    jobs.push(fetch('samples/piano/' + file).then(r => r.ok ? r.arrayBuffer() : Promise.reject(r.status))
+      .then(b => ac().decodeAudioData(b)).then(buf => { PIANO.buf[m] = buf; }).catch(() => {}));
+  }
+  Promise.all(jobs).then(() => { PIANO.state = Object.keys(PIANO.buf).length ? 'ready' : 'failed'; });
+}
+function pianoNote(m, dur, vel, delay) {
+  let s = null;
+  for (let d = 0; d <= 2 && s === null; d++) for (const k of [m - d, m + d]) if (PIANO.buf[k]) { s = k; break; }
+  if (s === null) return false;
+  const a = ac(), t = acAt(delay), src = a.createBufferSource(), g = a.createGain();
+  src.buffer = PIANO.buf[s]; src.playbackRate.value = Math.pow(2, (m - s) / 12);
+  const peak = 0.18 + 0.62 * Math.pow((vel || 80) / 127, 1.6), off = t + Math.max(0.25, dur || 0.6);
+  g.gain.setValueAtTime(peak, t); g.gain.setValueAtTime(peak, off); g.gain.exponentialRampToValueAtTime(0.0001, off + 0.35);
+  src.connect(g).connect(a.destination); src.start(t); src.stop(off + 0.4);
+  return true;
+}
 function synth(m, dur, vel, delay) {
+  if (pianoNote(m, dur, vel, delay)) return;
   const a = ac(), t = acAt(delay), f = 440 * Math.pow(2, (m - 69) / 12);
   const g = a.createGain(), o1 = a.createOscillator(), o2 = a.createOscillator(), g2 = a.createGain(), lp = a.createBiquadFilter();
   o1.type = 'triangle'; o1.frequency.value = f; o2.type = 'sine'; o2.frequency.value = f * 2; g2.gain.value = 0.22;
@@ -798,7 +859,7 @@ function scoreLayout() {
   SC.keyX = 4.4 * sp; SC.timeX = SC.keyX + Math.abs(P.pc.key) * 1.05 * sp + 1.5 * sp; SC.panel = SC.timeX + 1.5 * sp;
   SC.ph = Math.round(Math.max(SC.panel + 3 * sp, KB.W * 0.24)); SC.ppb = sp * Math.max(6, 2.8 / P.score.minDur);
 }
-const yS = (st, step) => (st === 'T' ? SC.tBot - (step - 30) * SC.sp / 2 : SC.bBot - (step - 18) * SC.sp / 2);
+const yS = (st, step) => (st === 'T' ? SC.tBot - (step - 30) * SC.sp / 2 : SC.bBot - (step - STAFF[st].bot) * SC.sp / 2);
 function ln(x1, y1, x2, y2) { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); }
 function poly(x, y, s, pts) { ctx.beginPath(); pts.forEach(([a, b], i) => ctx[i ? 'lineTo' : 'moveTo'](x + a * s, y + b * s)); ctx.closePath(); ctx.fill(); }
 function ell(x, y, rx, ry, rot) { ctx.moveTo(x + rx * Math.cos(rot), y + rx * Math.sin(rot)); ctx.ellipse(x, y, rx, ry, rot, 0, Math.PI * 2); }
@@ -914,11 +975,12 @@ function drawScore() {
   ctx.fillStyle = gr; ctx.fillRect(pw, 0, 2.5 * sp, hy);
   staffLines(.6 * sp, pw + 2.5 * sp);
   ctx.strokeStyle = ctx.fillStyle = INK.ink; ctx.lineWidth = Math.max(1, sp * 0.11); ln(.6 * sp, SC.tTop, .6 * sp, SC.bBot + 1);
-  drawClef('G', 1.1 * sp, SC.tTop); drawClef('F', 1.1 * sp, SC.bTop);
+  const lowG = P.pc.clefL === 'G', low = lowG ? 'BT' : 'B';
+  drawClef('G', 1.1 * sp, SC.tTop); drawClef(lowG ? 'G' : 'F', 1.1 * sp, SC.bTop);
   const k = P.pc.key, ks = KEY_T[Math.sign(k)];
   for (let i = 0; i < Math.abs(k); i++) {
     const x = SC.keyX + .55 * sp + i * 1.05 * sp;
-    drawAcc(Math.sign(k), x, yS('T', ks[i]), sp); drawAcc(Math.sign(k), x, yS('B', ks[i] - 14), sp);
+    drawAcc(Math.sign(k), x, yS('T', ks[i]), sp); drawAcc(Math.sign(k), x, yS(low, ks[i] - (lowG ? 0 : 14)), sp);
   }
   ctx.font = `700 ${(2.1 * sp).toFixed(1)}px Georgia,"Times New Roman",serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const top of [SC.tTop, SC.bTop]) { ctx.fillText(String(P.pc.tn || P.pc.num), SC.timeX, top + 1.05 * sp); ctx.fillText(String(P.pc.td || 4), SC.timeX, top + 3.05 * sp); }
@@ -936,7 +998,7 @@ const VIEWS = {
   score: ['Vue : partition qui défile', '<svg viewBox="0 0 24 24"><path d="M2 8h20M2 12h20M2 16h20"/><ellipse cx="8.6" cy="16" rx="2.9" ry="2.1" transform="rotate(-22 8.6 16)" style="fill:currentColor;stroke:none"/><path d="M11.2 15.3V3.8"/></svg>'] };
 let lastFrame = performance.now(), wakeLock = null, toastT = 0;
 function openPiece(pc) {
-  build(pc); ac(); LS.set('last', pc.id);
+  build(pc); ac(); loadPiano(); LS.set('last', pc.id);
   P = new Player(pc); setRangeKeys(pc.notes);
   $('#p-title').textContent = pc.title; $('#p-src').textContent = pc.src || '';
   const opts = Array.from({ length: pc.measures }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join('');
@@ -1060,7 +1122,8 @@ function miniKeys(pc) {
 }
 function progRow(pc, del) {
   const best = LS.get('best-' + pc.id, 0);
-  return `<div class="prow" role="button" tabindex="0" data-open="${esc(pc.id)}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(pc.title)}<span> · ${esc(pc.sub)}</span></b>`
+  const lvl = pc.lvl ? `<span title="niveau ${pc.lvl} sur 3" style="color:var(--rh);letter-spacing:-1px">${'●'.repeat(pc.lvl)}${'○'.repeat(3 - pc.lvl)}</span> ` : '';
+  return `<div class="prow" role="button" tabindex="0" data-open="${esc(pc.id)}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lvl}${esc(pc.title)}<span> · ${esc(pc.sub)}</span></b>`
     + `<span>${best ? best + ' %' : 'à jouer'}</span>${del ? `<button class="x" type="button" data-del="${esc(pc.id)}" aria-label="Supprimer ${esc(pc.title)}">✕</button>` : '<span></span>'}<i><b style="width:${best}%"></b></i></div>`;
 }
 function renderHome() {
@@ -1070,7 +1133,7 @@ function renderHome() {
   $('#g-scales').innerHTML = SCALES.map(p => `<button type="button" data-open="${esc(p.id)}" class="${done.includes(p) ? 'ok' : ''}">${done.includes(p) ? '✓ ' : ''}${esc(shortScale(p))}</button>`).join('');
   $('#h-next').textContent = done.length === SCALES.length ? 'Toutes réussies' : 'Prochaine : ' + shortScale(next) + ' majeur';
   $('#h-pieces-n').textContent = PIECES.length + ' pièces · domaine public';
-  $('#g-pieces').innerHTML = PIECES.map(p => progRow(p)).join('');
+  $('#g-pieces').innerHTML = PIECES.slice().sort((a, b) => a.lvl - b.lvl).map(p => progRow(p)).join('');
   const im = imports();
   $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI importé garde son tempo, sa mesure et son armure ; pas encore de doigtés.</p>';
   const min = Math.floor((practice[dayKey(new Date())] || 0) / 60), st = streak();

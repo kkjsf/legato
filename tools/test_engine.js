@@ -136,7 +136,7 @@ export async function run() {
     const d = [62, 64, 66, 67, 69, 71, 73, 74].map((m, i) => [m, i, 1, 1]);
     ok('armure devinée : gamme de Ré = 2 dièses', guessKey(d) === 2);
     ok('épellation : Si♭ en Fa, Do♯ en Ré, Fa♮ en Sol', spell(70, -1).fr === 'Si♭' && spell(61, 2).fr === 'Do♯' && spell(65, 1).alt === 0 && spell(65, 1).step === 31);
-    ok('épellation hors gamme : Fa♯ en Fa, Si♭ / Mi♭ / Do♯ en Do, Mi♯ en Fa♯', spell(66, -1).fr === 'Fa♯' && spell(70, 0).fr === 'Si♭' && spell(63, 0).fr === 'Mi♭' && spell(61, 0).fr === 'Do♯' && spell(65, 6).fr === 'Mi♯' && spell(65, 6).step === 30);
+    ok('épellation hors gamme : Fa♯ en Fa, Si♭ / Mi♭ / Do♯ en Do, Mi♯ en Fa♯', spell(66, -1).fr === 'Fa♯' && spell(70, 0).fr === 'Si♭' && spell(63, 0).fr === 'Mi♭' && spell(61, 0).fr === 'Do♯' && spell(65, 6).fr === 'Mi♯' && spell(65, 6).step === 30 && spell(61, -1).fr === 'Do♯' && spell(66, -2).fr === 'Fa♯');
 
     // ---------- 7. import d'un MIDI fabriqué (tempo, 3/4, armure 3 bémols, statut courant) ----------
     const u32 = n => [n >>> 24, (n >> 16) & 255, (n >> 8) & 255, n & 255];
@@ -150,6 +150,16 @@ export async function run() {
     ok('import : mains par piste', pc.data.filter(n => n[3] === 1).length === 4 && pc.data.filter(n => n[3] === 0).length === 2);
     openPiece(pc);
     ok('import : Mi♭ épelé en bémol, sans altération (armure)', P.notes.find(n => n.midi === 75).fr === 'Mi♭' && P.score.units.flatMap(u => u.notes).every(n => n.acc === null));
+
+    // ---------- 7 bis. répertoire : notes recopiées de Mutopia, mesures entières, doigtés partout ----------
+    const count = { 'menuet-sol-mineur': [118, 81], 'schumann-melodie': [118, 185] };
+    for (const p of PIECES) {
+      build(p);
+      const end = h => Math.max(...p.notes.filter(n => n.hand === h).map(n => n.on + n.dur));
+      const n = h => p.notes.filter(x => x.hand === h).length, ok2 = !count[p.id] || (n('R') === count[p.id][0] && n('L') === count[p.id][1]);
+      ok('répertoire ' + p.id + ' : ' + n('R') + ' + ' + n('L') + ' notes, fin sur la barre, doigtés', ok2 && Math.abs(Math.max(end('R'), end('L')) - p.measures * p.num) < 1e-6 && p.notes.every(x => x.f >= 1 && x.f <= 5) && p.lvl >= 1,
+        `${p.measures} mes., MD finit à ${end('R')}, MG à ${end('L')}`);
+    }
 
     // ---------- 8. dessin : chaque morceau, les deux vues, du début à la fin ----------
     let errs = 0, frames = 0;

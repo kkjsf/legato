@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v3 en ligne (2026-11-06)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v4 en ligne (2026-11-09)**, v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,38 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
 P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v4 (2026-11-09) : vrai piano, répertoire étoffé
+
+- **Son de piano échantillonné** pour tout ce que joue le téléphone (démo, autre main sans sortie
+  MIDI, touches à l'écran) : **Salamander Grand Piano V3** (Alexander Holm, **CC BY 3.0**), les
+  mêmes MP3 que Harmonic Atlas (qui les charge par Tone.js depuis `tonejs.github.io/audio/salamander/`),
+  copiés dans `samples/piano/` (30 fichiers, La0 à Do8 toutes les tierces mineures, 2 Mo,
+  `LICENCE.txt`). Chargés sans Tone.js à l'ouverture du 1er morceau (`loadPiano`, `decodeAudioData`),
+  note intermédiaire transposée depuis l'échantillon le plus proche (`pianoNote`), synthèse en
+  secours tant qu'ils ne sont pas prêts. Le worker les garde dans `legato-samples` (survit aux
+  versions). Le métronome garde son clic.
+- **Répertoire classé par difficulté** (`lvl` 1 à 3, points sur l'accueil) : Au clair de la lune et
+  Ode à la joie (1), Menuet en sol (2), **Menuet en sol mineur** BWV Anh. 115 (2, 32 mes., notes
+  Mutopia, Bach-Gesellschaft, saisie Allen Garvin, domaine public), **Mélodie** de Schumann op. 68
+  n° 1 (3, 24 mes., notes Mutopia, édition Peters, saisie Philippe Hézaine, CC BY-SA 2.5 ; l'œuvre est
+  du domaine public). Notes extraites des MIDI Mutopia (nombre de notes vérifié par les tests),
+  doigtés proposés par un calcul de positions puis repris à la main mesure par mesure (passages du
+  pouce, phrases répétées, MG de la Mélodie en position de Do 5-4-3-2-1, déplacements marqués). Une
+  note tenue sous des croches (Fa de la Mélodie, mes. 12 et 20) est raccourcie en croche : le format
+  des voix est séquentiel.
+- **Portée du bas en clé de sol** quand un morceau le demande (`clefL: 'G'`, portée `BT`) : la MG
+  de la Mélodie reste au-dessus du Do central.
+- **Épellation** : à égalité sur la ligne des quintes, le dièse (Do♯ en ré mineur, Fa♯ en sol mineur).
+- **Ha Sara** (`0_PERSO/Musique/PIANO/Ha_Sara.pdf`) = la Sarabande de la Suite en ré mineur
+  HWV 437 de Haendel (thème de *Barry Lyndon*) **dans l'arrangement 8notes.com « © 2018 Red
+  Balloon Technology Ltd »** : œuvre du domaine public, arrangement protégé, donc **pas dans le dépôt
+  public**. Transcrite (16 mesures, 3/2, ré mineur, accords MD + basse) en MIDI **personnel**
+  `perso/Sarabande_Haendel_HWV437_8notes.mid`, dossier `perso/` ignoré par git : à copier sur le
+  téléphone et à ouvrir par « Importer un MIDI » (reste sur l'appareil, sans doigtés).
+- Tests : 43 contrôles (répertoire : nombre de notes, fin sur la barre, doigtés partout). Dans le
+  volet navigateur bridé à 1 image/s, le contrôle de régularité du métronome en temps réel échoue
+  (un à-coup au-delà de 250 ms) : bridage du volet, pas de l'appli (passé en v2 / v3).
 
 ### v3 (2026-11-06) : l'accueil de la maquette
 
