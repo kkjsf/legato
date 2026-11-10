@@ -25,6 +25,21 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
 
+### v12 (2026-11-10) : catalogue en 5 niveaux, tri
+
+Demande de Simon : au moins 5 niveaux de difficulté, trier par note / étoiles, et « à quoi servent les mes. ? »
+(c'étaient les mesures : écrit en entier désormais).
+- `level()` de `tools/build_catalog.py` : densité = notes par temps (`n_notes / song_length.beats`), seuils
+  1,2 / 2,2 / 3,5 / 5,5, un cran de moins pour une seule portée ; difficulté MuseScore 1 = au plus 3, 2 = entre 2
+  et 4, 3 = au moins 4. Répartition : 426 / 574 / 714 / 658 / 232 (niveau 1 : versions simples, Gnossienne
+  n° 1, El Condor Pasa ; niveau 5 : Rachmaninov, concertos de Tchaïkovski et Grieg). Noms : débutant,
+  facile, moyen, avancé, virtuose. Un ancien catalogue en 3 niveaux reste lisible (points sur le maximum).
+- Vue catalogue : filtre Tous / 1 à 5, « Trier par » : mieux notés, difficulté croissante ou décroissante,
+  plus courts, plus longs, titre (à égalité, l'ordre de l'index). Tests : 118. **Recopier le nouveau
+  `perso/legato-catalogue.zip` sur le téléphone** (« Remplacer le catalogue ») pour avoir les 5 niveaux.
+- Limite connue : la sélection repose sur ce que déclare la personne qui publie sur MuseScore ; un morceau
+  marqué traditionnel peut être récent (vu : « Mi General Augusto Pinochet », arr. b3cquerel).
+
 ### v11 (2026-11-10) : catalogue PDMX sur le téléphone
 
 Demande de Simon : « je pourrais mettre ce catalogue sur mon tel aussi et l'appli piochera dedans ? ok prépare le catalogue ».

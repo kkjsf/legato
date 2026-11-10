@@ -85,6 +85,8 @@ ol.help li{margin:3px 0}
 
 /* catalogue */
 #k-q{flex:1;min-width:180px;background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+#k-sortl{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);min-width:0}
+#k-sortl select{min-width:0;max-width:62vw}
 #k-list{font-size:13.5px}
 #k-list .prow{grid-template-columns:1fr auto auto;border-bottom:1px solid var(--line);border-radius:0;padding:6px 2px}
 
@@ -223,7 +225,8 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
     <label class="btn p" for="f-cat" style="cursor:pointer;display:inline-block">Ouvrir le fichier catalogue</label></div>
   <div id="k-ui" hidden>
     <div class="row" style="margin:12px 0 8px"><input type="search" id="k-q" placeholder="Titre ou compositeur" aria-label="Rechercher un titre ou un compositeur" autocomplete="off">
-      <div class="seg" id="k-lvl" role="group" aria-label="Difficulté"><button type="button" data-l="0">Tous</button><button type="button" data-l="1" title="Facile">●</button><button type="button" data-l="2" title="Moyen">●●</button><button type="button" data-l="3" title="Difficile">●●●</button></div>
+      <div class="seg" id="k-lvl" role="group" aria-label="Difficulté"><button type="button" data-l="0">Tous</button><button type="button" data-l="1" title="Débutant">1</button><button type="button" data-l="2" title="Facile">2</button><button type="button" data-l="3" title="Moyen">3</button><button type="button" data-l="4" title="Avancé">4</button><button type="button" data-l="5" title="Virtuose">5</button></div>
+      <label id="k-sortl" for="k-sort"><span>Trier par</span><select id="k-sort"><option value="stars">les mieux notés</option><option value="easy">difficulté croissante</option><option value="hard">difficulté décroissante</option><option value="short">les plus courts</option><option value="long">les plus longs</option><option value="title">titre</option></select></label>
       <label class="chk" for="k-fing"><input type="checkbox" id="k-fing"> avec doigtés écrits</label></div>
     <div class="prog" id="k-list"></div><p class="txt" id="k-more"></p>
     <p class="txt" id="k-src"></p>
@@ -327,7 +330,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '11', APP_DATE = '10 novembre 2026';
+const APP_VERSION = '12', APP_DATE = '10 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -2076,7 +2079,11 @@ $('#r-keys').addEventListener('pointerup', rdUp); $('#r-keys').addEventListener(
 new ResizeObserver(() => { if (view === 'read') rdRenderKeys(); }).observe($('#r-keys'));
 
 /* ---------- catalogue : un .zip (index.json + mxl/<id>.mxl) ouvert une fois, gardé dans IndexedDB, lu à la demande ---------- */
-const CAT = { blob: null, files: null, idx: null, lvl: 0, fing: false };
+const CAT = { blob: null, files: null, idx: null, lvl: 0, fing: false, sort: 'stars' };
+const LVL_NAMES = ['', 'débutant', 'facile', 'moyen', 'avancé', 'virtuose'];
+// tri : à égalité, l'ordre de l'index (les mieux notés d'abord)
+const CAT_SORT = { stars: (a, b) => b[7] - a[7], easy: (a, b) => a[3] - b[3], hard: (a, b) => b[3] - a[3], short: (a, b) => a[4] - b[4], long: (a, b) => b[4] - a[4],
+  title: (a, b) => a[1].localeCompare(b[1], 'fr', { sensitivity: 'base' }) };
 let IDBP = null;
 const idb = () => IDBP || (IDBP = new Promise((res, rej) => { const r = indexedDB.open('legato', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
 const idbDo = (mode, fn) => idb().then(db => new Promise((res, rej) => { const t = db.transaction('files', mode), q = fn(t.objectStore('files')); t.oncomplete = () => res(q.result); t.onerror = t.onabort = () => rej(t.error); }));
@@ -2092,7 +2099,7 @@ async function catOpen() {
   if (!CAT.idx) try { const b = await idbGet('catalogue'); if (b) await catLoad(b); } catch (e) { $('#k-msg').textContent = e.message; }
   catRender();
 }
-// colonnes de l'index : id, titre, compositeur, niveau 1-3, mesures, notes, doigtés écrits, note x10, licence
+// colonnes de l'index : id, titre, compositeur, niveau 1-5 (anciens catalogues : 1-3), mesures, notes, doigtés écrits, note x10, licence
 function catRender() {
   const I = CAT.idx; $('#k-empty').hidden = !!I; $('#k-ui').hidden = !I;
   if (!I) { $('#k-info').textContent = ''; return; }
@@ -2101,14 +2108,17 @@ function catRender() {
   document.querySelectorAll('#k-lvl button').forEach(b => b.classList.toggle('on', +b.dataset.l === CAT.lvl));
   const words = fold($('#k-q').value.trim()).split(/\s+/).filter(Boolean), out = [];
   if (!I.fold) I.fold = I.items.map(it => fold(it[1] + ' ' + it[2]));
-  let n = 0;
-  I.items.forEach((it, i) => {
-    if ((CAT.lvl && it[3] !== CAT.lvl) || (CAT.fing && !it[6]) || !words.every(w => I.fold[i].includes(w))) return;
-    if (n++ < 80) out.push(`<div class="prow" role="button" tabindex="0" data-cat="${esc(it[0])}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:var(--rh);letter-spacing:-1px">${'●'.repeat(it[3])}${'○'.repeat(3 - it[3])}</span> ${esc(it[1])}<span> · ${esc(it[2] || 'anonyme')}</span></b>`
-      + `<span>${it[4]} mes.${it[6] ? ' · doigtés' : ''}</span><span>${it[7] ? '★ ' + (it[7] / 10).toFixed(1).replace('.', ',') : ''}</span></div>`);
-  });
+  const max = Math.max(3, ...I.items.map(it => it[3])), hit = [];
+  I.items.forEach((it, i) => { if (!(CAT.lvl && it[3] !== CAT.lvl) && !(CAT.fing && !it[6]) && words.every(w => I.fold[i].includes(w))) hit.push(i); });
+  hit.sort((a, b) => CAT_SORT[CAT.sort](I.items[a], I.items[b]) || a - b);
+  const n = hit.length;
+  for (const i of hit.slice(0, 80)) {
+    const it = I.items[i];
+    out.push(`<div class="prow" role="button" tabindex="0" data-cat="${esc(it[0])}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:var(--rh);letter-spacing:-1px" title="niveau ${it[3]} sur ${max}${max === 5 ? ' : ' + LVL_NAMES[it[3]] : ''}">${'●'.repeat(it[3])}${'○'.repeat(max - it[3])}</span> ${esc(it[1])}<span> · ${esc(it[2] || 'anonyme')}</span></b>`
+      + `<span>${it[4]} mesure${it[4] > 1 ? 's' : ''}${it[6] ? ' · doigtés' : ''}</span><span>${it[7] ? '★ ' + (it[7] / 10).toFixed(1).replace('.', ',') : ''}</span></div>`);
+  }
   $('#k-list').innerHTML = out.join('') || '<p class="txt">Rien ne correspond.</p>';
-  $('#k-more').textContent = n > 80 ? `80 premiers sur ${n.toLocaleString('fr-FR')}, les mieux notés d'abord : précise la recherche.` : n ? n + ' morceau' + (n > 1 ? 'x' : '') : '';
+  $('#k-more').textContent = n > 80 ? `80 premiers sur ${n.toLocaleString('fr-FR')} : précise la recherche ou change le tri.` : n ? n + ' morceau' + (n > 1 ? 'x' : '') : '';
 }
 async function catAdd(id) {
   const have = imports().find(p => p.cat === id); if (have) { openPiece(have); return; }
@@ -2136,6 +2146,7 @@ let catT = 0;
 $('#k-q').oninput = () => { clearTimeout(catT); catT = setTimeout(catRender, 150); };
 $('#k-lvl').onclick = e => { const b = e.target.closest('[data-l]'); if (b) { CAT.lvl = +b.dataset.l; catRender(); } };
 $('#k-fing').onchange = e => { CAT.fing = e.target.checked; catRender(); };
+$('#k-sort').onchange = e => { CAT.sort = e.target.value; catRender(); };
 
 const KEYMAP = ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK', 'KeyO', 'KeyL', 'KeyP', 'Semicolon'];
 let kbOct = 60; const kbDown = {};

@@ -476,6 +476,9 @@ export async function run() {
         const fg = [...$('#k-list').querySelectorAll('[data-cat]')].map(r => r.dataset.cat).join();
         $('#k-fing').click();
         ok('catalogue : filtres difficulté et « avec doigtés écrits »', lv === 'def456' && fg === 'abc123');
+        const order = k => { $('#k-sort').value = k; $('#k-sort').dispatchEvent(new Event('change')); return [...$('#k-list').querySelectorAll('[data-cat]')].map(r => r.dataset.cat).join(); };
+        ok('catalogue : tri par note, difficulté, titre ; « mesures » en entier', order('stars') === 'abc123,def456' && order('hard') === 'def456,abc123' && order('easy') === 'abc123,def456' && order('title') === 'def456,abc123' && /1 mesure/.test($('#k-list').textContent) && !/mes\./.test($('#k-list').textContent));
+        order('stars');
         Object.assign(CAT, { blob: null, files: null, idx: null }); await catOpen();
         ok('catalogue : relu depuis le stockage de l\'appli (sans le fichier)', CAT.idx && CAT.idx.items.length === 2);
         const nImp = imports().length;

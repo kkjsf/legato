@@ -53,11 +53,20 @@ def keep(z):
     return rated or (two and named and n_notes >= 60) or (two and int(z['n_favorites'] or 0) >= 3)
 
 def level(z):
-    c = int(z['complexity'] or 0); npb = float(z['notes_per_bar'] or 0)
-    est = 1 if npb < 7 else 2 if npb < 16 else 3
-    if c in (1, 2, 3):
-        return max(c, est - 1) if c == 1 else c
-    return est
+    # 5 niveaux : densité (notes par temps), corrigée par la difficulté donnée sur MuseScore (1 à 3) et le nombre de portées
+    beats = float(z['song_length.beats'] or 0)
+    npt = int(float(z['n_notes'] or 0)) / beats if beats else float(z['notes_per_bar'] or 0) / 4
+    lv = 1 if npt < 1.2 else 2 if npt < 2.2 else 3 if npt < 3.5 else 4 if npt < 5.5 else 5
+    if len([t for t in z['tracks'].split('-') if t]) == 1:
+        lv -= 1
+    c = int(z['complexity'] or 0)
+    if c == 1:
+        lv = min(lv, 3)
+    elif c == 2:
+        lv = min(max(lv, 2), 4)
+    elif c == 3:
+        lv = max(lv, 4)
+    return max(1, min(5, lv))
 
 def score(z):
     n = int(z['n_ratings'] or 0); r = float(z['rating'] or 0) if n else 3.0
@@ -109,7 +118,7 @@ def main():
         idx = {'v': 1, 'date': datetime.date.today().isoformat(), 'n': len(items),
                'src': f'{len(items)} pièces pour piano tirées de PDMX v9 (Long et al., 2024, jeu de données sous CC BY 4.0, '
                       'zenodo.org/records/15571083) : partitions de la communauté MuseScore publiées en domaine public ou CC0, '
-                      'sans conflit de licence ; difficulté donnée par MuseScore ou estimée. Classées des mieux notées aux autres.',
+                      'sans conflit de licence ; difficulté en 5 niveaux (densité de notes, corrigée par celle donnée sur MuseScore). Classées des mieux notées aux autres.',
                'items': items}
         zo.writestr(zipfile.ZipInfo('index.json'), json.dumps(idx, ensure_ascii=False, separators=(',', ':')).encode('utf-8'), compress_type=zipfile.ZIP_DEFLATED)
     os.replace(OUT + '.tmp', OUT)
