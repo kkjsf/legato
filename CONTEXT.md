@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v14 prête en local (2026-11-10), NI COMMITÉE NI DÉPLOYÉE** : revue complète corrigée (9 bugs + doigtés), 133 / 133 tests, détail dans la section v14 ; **v13 vérifiée en ligne (2026-11-10, `8c30130`** : doigtés calculés revus, Sarabande mes. 2 et 10 en 1-2-4, mes. 14-15 dans une seule position ; worker `v=13`, 119 / 119 sur kkjsf.github.io en 800 x 360 au 2e passage, le 1er n'ayant raté que le métronome en temps réel, volet masqué ; Sarabande perso absente en ligne, 120 / 120 en local avec elle) ; **v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v14 vérifiée en ligne (2026-11-10, `4c8dee3`** : revue complète corrigée, 9 bugs + doigtés ; worker `v=14`, cache `legato-v14`, 132 / 132 sur kkjsf.github.io en 800 x 360, Sarabande perso absente ; 133 / 133 en local avec elle ; pas essayée sur le téléphone ni sur le P-145) ; **v13 vérifiée en ligne (2026-11-10, `8c30130`** : doigtés calculés revus, Sarabande mes. 2 et 10 en 1-2-4, mes. 14-15 dans une seule position ; worker `v=13`, 119 / 119 sur kkjsf.github.io en 800 x 360 au 2e passage, le 1er n'ayant raté que le métronome en temps réel, volet masqué ; Sarabande perso absente en ligne, 120 / 120 en local avec elle) ; **v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -25,11 +25,11 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
 
-### v14 (2026-11-10, EN LOCAL : ni commitée ni déployée) : la revue corrigée, doigtés revus
+### v14 (2026-11-10, en ligne, `4c8dee3`) : la revue corrigée, doigtés revus
 
 Simon : « Oui, corrige », puis « + les doigtés ». Les 9 points « ne marche pas » de la revue ci-dessous et les doigtés
-calculés. **133 / 133 tests** en 800 x 360 (13 nouveaux, section 9 de `tools/test_engine.js`). Reste à faire pour
-livrer : commit, push, vérifier en ligne (worker `v=14`).
+calculés. **133 / 133 tests** en 800 x 360 (13 nouveaux, section 9 de `tools/test_engine.js`). Déployée le
+jour même à la demande de Simon (« Oui, déploie »). Reste à essayer sur le téléphone et le P-145.
 
 - **Mode attente, l'élève mène** (`Player.input`, `Player.jump`) : la bonne note du prochain groupe pas encore joué
   compte toujours ; au-delà de 0,6 temps d'avance, le groupe complet fait sauter le moteur jusqu'à lui (les notes de
