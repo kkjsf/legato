@@ -518,6 +518,84 @@ export async function run() {
     }
     ok('dessin : toutes les vues de tous les morceaux sans erreur', errs === 0, `${frames} images`);
     ok('clés : Noto Music mesurée', CM.G && CM.G.a + CM.G.d > 0 && CM.F.a + CM.F.d > 0, CM.G ? `sol ${(CM.G.a + CM.G.d).toFixed(0)} / fa ${(CM.F.a + CM.F.d).toFixed(0)} px à 100 px` : 'absente');
+
+    // ---------- 9. v14 : ce que la revue du 2026-11-10 a trouvé ----------
+    {
+      SET.view = 'fall'; SET.accomp = 'off'; SET.metro = false;
+      const scale = findPiece('gamme-C4'), playWait = () => { let g = 0; while (!P.done && g++ < 50000) { P.step(1 / 60); if (P.wait) { const ms = P.wait.grp.map(n => n.midi); ms.forEach(m => key(m)); ms.forEach(m => rel(m)); } } };
+      // mode attente : une note toutes les 0,2 s sur une gamme réglée à 64 à la noire
+      openPiece(scale); P.hands = 'R'; P.mode = 'wait'; P.pct = 80; restart(); MIDI.recent = {};
+      let refused = 0;
+      for (let i = 0; i < 120; i++) P.step(1 / 60);
+      for (const m of P.notes.filter(n => n.hand === 'R').map(n => n.midi)) { P.flashes = []; key(m); rel(m); if (P.flashes.some(f => f.k === 'err')) refused++; for (let i = 0; i < 12; i++) P.step(1 / 60); }
+      for (let i = 0; i < 600 && !P.done; i++) P.step(1 / 60);
+      r = P.result();
+      ok('attente : jouer plus vite que le tempo réglé, aucune note juste refusée, le moteur suit', refused === 0 && P.done && r.ok === r.tot, `${refused} refus, ${r.ok}/${r.tot}`);
+      // meilleur score
+      localStorage.removeItem('legato-best-gamme-C4'); localStorage.removeItem('legato-bestk-gamme-C4');
+      openPiece(scale); P.hands = 'R'; P.mode = 'wait'; P.setRange(1, 1); playWait();
+      const partial = LS.get('best-gamme-C4', 0);
+      openPiece(scale); P.hands = 'R'; P.mode = 'wait'; restart(); playWait();
+      ok('meilleur score : une mesure seule ne compte pas, le morceau entier oui, avec la main', partial === 0 && LS.get('best-gamme-C4', 0) === 100 && LS.get('bestk-gamme-C4', {}).h === 'R' && progRow(scale).includes('100 % · MD'), `passage ${partial}, entier ${LS.get('best-gamme-C4', 0)}`);
+      // temps joué
+      openPiece(scale); P.mode = 'wait'; restart(); for (let i = 0; i < 200 && !P.wait; i++) P.step(1 / 60);
+      const dk = dayKey(new Date()), p0 = practice[dk] || 0, first = P.wait.grp[0].midi; key(first); rel(first);
+      countPractice(1, performance.now()); const p1 = practice[dk]; countPractice(1, performance.now() + 20000); const p2 = practice[dk]; practice[dk] = p0;
+      ok('temps joué : compté après une note, plus après 15 s sans jouer', Math.abs(p1 - p0 - 1) < 1e-6 && p2 === p1, `${(p1 - p0).toFixed(1)} s puis ${(p2 - p1).toFixed(1)} s`);
+      // titre d'un fichier importé dans le bilan
+      window.__xss = 0;
+      openPiece({ id: 'test-xss', title: '<img src=x onerror="window.__xss=1">', sub: '', bpm: 100, num: 4, key: 0, hands: 'R', pct: 100, src: '', data: [[60, 0, 1, 1], [62, 1, 1, 1]] });
+      P.mode = 'wait'; restart(); playWait(); await new Promise(res => setTimeout(res, 60));
+      ok('bilan : le titre d\'un fichier importé est échappé', P.done && !$('#p-resbox img') && !window.__xss && $('#p-resbox h3').textContent.includes('<img'));
+      // geste retour d'Android
+      await new Promise(res => setTimeout(res, 150));
+      openPiece(menuet); const guarded = HIST.guard && !HIST.backing; $('#p-sheet').hidden = false;
+      window.dispatchEvent(new PopStateEvent('popstate')); const closed = $('#p-sheet').hidden && view === 'play';
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      ok('retour Android : ferme les réglages du passage, puis ramène à l\'accueil', guarded && closed && view === 'home');
+      // MusicXML
+      const xn = (st, oc, d) => `<note><pitch><step>${st}</step><octave>${oc}</octave></pitch><duration>${d}</duration></note>`;
+      const xdoc = (time, ms) => `<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1">${ms.map((m, i) => `<measure number="${i + 1}">${i ? '' : `<attributes><divisions>2</divisions>${time}</attributes>`}${m}</measure>`).join('')}</part></score-partwise>`;
+      const t34 = '<time><beats>3</beats><beat-type>4</beat-type></time>', q = (s, o = 4) => xn(s, o, 2), rp = d => `<barline><repeat direction="${d}"/></barline>`, snd = a => `<direction><sound ${a}="yes"/></direction>`;
+      let x = parseMusicXml(xdoc(t34, [q('G'), q('C', 5) + q('D', 5) + q('E', 5), q('F', 5) + q('E', 5) + rp('backward'), rp('forward') + q('G'), q('A') + q('B') + q('C', 5), q('D', 5) + q('C', 5)]), 't');
+      const gaps = x.data.slice(1).map((n, i) => n[1] - x.data[i][1]);
+      ok('MusicXML : levée, reprise, mesure coupée en 2 + 1 temps, aucun silence ajouté', x.data.length === 18 && x.data[0][1] === 2 && gaps.every(g => Math.abs(g - 1) < 1e-6) && !x.warn.length, gaps.join(' '));
+      x = parseMusicXml(xdoc(t34, [q('C') + q('C') + q('C'), q('D') + q('D') + q('D') + snd('fine'), q('E') + q('E') + q('E') + snd('dacapo')]), 't');
+      const seq = x.data.filter((n, i) => i % 3 === 0).map(n => n[0]).join();
+      ok('MusicXML : D.C. al Fine suivi', seq === '60,62,64,60,62', seq);
+      x = parseMusicXml(xdoc(t34, [q('C') + q('C') + q('C'), q('D') + q('D') + q('D') + snd('segno'), q('E') + q('E') + q('E') + snd('tocoda'), q('F') + q('F') + q('F') + snd('dalsegno'), snd('coda') + q('G') + q('G') + q('G')]), 't');
+      const seq2 = x.data.filter((n, i) => i % 3 === 0).map(n => n[0]).join();
+      ok('MusicXML : D.S. al Coda suivi', seq2 === '60,62,64,65,62,64,67', seq2);
+      x = parseMusicXml(xdoc(t34, [q('C') + q('C') + q('C'), '<direction><direction-type><words>D.C. al Fine</words></direction-type></direction>' + q('D') + q('D') + q('D')]), 't');
+      ok('MusicXML : renvoi écrit sans indication de lecture, signalé', x.warn.some(w => /renvois/.test(w)), x.warn.join());
+      // 6/8
+      const e8 = s => xn(s, 5, 1), bar68 = e8('C') + e8('D') + e8('E') + e8('F') + e8('E') + e8('D');
+      const p68 = build(parseMusicXml(xdoc('<time><beats>6</beats><beat-type>8</beat-type></time>', [bar68, bar68]), 't'));
+      SET.metro = true; openPiece(p68); P.mode = 'tempo'; restart(); P.running = true; METRO.log.length = 0;
+      for (let i = 0; i < 480 && !P.done; i++) { P.step(1 / 60); metroRun(); }
+      const cl = METRO.log.map(c => c.b + (c.accent ? '!' : '')).join(' '), bm = P.score.beams.map(g => g.length).join('+');
+      ok('6/8 : deux temps par mesure à la noire pointée, croches liées par trois', pulseOf(p68) === 1.5 && bm === '3+3+3+3' && cl.startsWith('-3! -1.5 0! 1.5 3!'), cl + ' · ' + bm);
+      SET.metro = false; metroCancel();
+      // deux voix dans une main
+      const v2 = build({ id: 'test-2v', title: '', sub: '', bpm: 90, num: 4, hands: 'R', pct: 100, src: '', key: 0, data: [[64, 0, 4, 1], [72, 0, 1, 1], [74, 1, 1, 1], [76, 2, 1, 1], [77, 3, 1, 1]] });
+      const u0 = engrave(v2.notes.map(n => Object.assign({}, n)), v2).units[0], hd = m => u0.notes.find(n => n.midi === m).hd;
+      ok('gravure : une ronde tenue sous des noires, chaque note garde sa figure, hampe sur la noire', hd(64) === 'w' && hd(72) === 'q' && u0.hd === 'q' && u0.up && u0.slo === u0.shi, `${hd(64)} ${hd(72)}`);
+      // doigtés calculés : motifs d'école
+      const fg = (str, hand) => {
+        let t = 0; const data = []; for (const g of str.split(' ')) { for (const m of g.split('+')) data.push([+m, t, 1, hand === 'R' ? 1 : 0]); t++; }
+        const pc2 = build({ id: 'test-fg', title: '', sub: '', bpm: 90, num: 4, hands: 'B', pct: 100, src: '', key: 0, data });
+        return [...new Set(pc2.notes.map(n => n.on))].map(o => pc2.notes.filter(n => n.on === o).sort((a, b) => a.midi - b.midi).map(n => n.f).join('')).join(' ');
+      };
+      const school = [['Frère Jacques MD', '60 62 64 60 60 62 64 60 64 65 67 64 65 67', 'R', '1 2 3 1 1 2 3 1 3 4 5 3 4 5'],
+        ['cadence I-IV-V7-I MD', '60+64+67 60+65+69 59+65+67 60+64+67', 'R', '135 135 145 135'], ['cadence I-IV-V7-I MG', '48+52+55 48+53+57 47+53+55 48+52+55', 'L', '531 521 521 531'],
+        ['basse d\'Alberti MG', '48 55 52 55 48 55 52 55', 'L', '5 1 3 1 5 1 3 1'], ['arpège de Do MD sur deux octaves', '60 64 67 72 76 79 84 79 76 72 67 64 60', 'R', '1 2 3 1 2 3 5 3 2 1 3 2 1'],
+        ['gamme chromatique MD', '60 61 62 63 64 65 66 67 68 69 70 71 72', 'R', '1 3 1 3 1 2 3 1 3 1 3 1 2'], ['gamme chromatique MG', '48 49 50 51 52 53 54 55 56 57 58 59 60', 'L', '1 3 1 3 2 1 3 1 3 1 3 2 1'],
+        ['renversements MD', '60+64+67 64+67+72 67+72+76', 'R', '135 125 135'], ['renversements MG', '48+52+55 52+55+60 55+60+64', 'L', '531 531 521'], ['tierces liées MD', '60+64 62+65 64+67', 'R', '13 24 35']];
+      const off = school.filter(([, s, h, e]) => fg(s, h) !== e);
+      ok('doigtés calculés : ' + school.length + ' motifs d\'école (position de cinq doigts, cadence, Alberti, arpège, chromatique, renversements)', !off.length, off.map(([n, s, h]) => n + ' ' + fg(s, h)).join(' · ') || 'tous justes');
+      const cz = build({ id: 'test-calc', title: '', sub: '', bpm: 90, num: 4, hands: 'R', pct: 100, src: '', key: 0, data: [[60, 0, 1, 1, 3], [62, 1, 1, 1, 0]] });
+      ok('doigtés : un doigt écrit reste droit, un doigt calculé est marqué (italique)', cz.notes[0].f === 3 && cz.notes[0].calc === false && cz.notes[1].calc === true);
+    }
   } catch (e) {
     ok('exception', false, e.stack);
   } finally {

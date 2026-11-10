@@ -318,7 +318,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
       <label class="fld" for="p-acc"><span>L'autre main est jouée par</span>
         <select id="p-acc"><option value="piano">le piano (sortie MIDI)</option><option value="phone">le téléphone</option><option value="off">personne</option></select></label>
       <p class="txt" style="margin:0">Se déplacer : toucher une mesure dans la barre du haut, ⏮ / ⏭, ou faire glisser la partition du doigt (relâcher = repartir de là). Glisser sur plusieurs mesures de la barre les boucle.</p>
-      <p class="txt" style="margin:0">Appui long sur un doigté (touche, note) pour le corriger. Latence déduite : <b id="p-lat"></b> · <button class="lnk" type="button" data-go="diag">calibrer</button></p>
+      <p class="txt" style="margin:0">Doigté droit et gras : écrit dans la partition ou choisi par toi. <i>En italique</i> : calculé par Legato, à prendre comme une proposition. Appui long sur un doigté (touche, note) pour le corriger. Latence déduite : <b id="p-lat"></b> · <button class="lnk" type="button" data-go="diag">calibrer</button></p>
       <div class="row"><button class="btn" type="button" id="p-fs">Plein écran</button><button class="btn p" type="button" id="p-close">Fermer</button></div>
       <p class="txt" id="p-src"></p>
     </div>
@@ -330,7 +330,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '13', APP_DATE = '10 novembre 2026';
+const APP_VERSION = '14', APP_DATE = '10 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -350,6 +350,8 @@ function pn(s) {
 }
 // armure : key = nombre de dièses (> 0) ou de bémols (< 0)
 const SHARPS = [3, 0, 4, 1, 5, 2, 6], FLATS = [6, 2, 5, 1, 4, 0, 3];
+// temps du métronome, en noires : la noire pointée en 6/8, 9/8 et 12/8 (la blanche pointée en 6/4), la croche dans les autres x/8
+function pulseOf(pc) { const tn = pc.tn || pc.num, td = pc.td || 4; return [6, 9, 12].includes(tn) && td >= 4 ? 12 / td : td > 4 ? 4 / td : 1; }
 function keyAlt(k) { const a = [0, 0, 0, 0, 0, 0, 0]; for (let i = 0; i < Math.abs(k); i++) a[(k > 0 ? SHARPS : FLATS)[i]] = Math.sign(k); return a; }
 // épellation d'une hauteur MIDI : la plus proche de la tonalité sur la ligne des quintes (Fa♯ plutôt que Sol♭ en Fa majeur),
 // à égalité le dièse (sensible du mineur : Do♯ en ré mineur, Fa♯ en sol mineur)
@@ -480,7 +482,10 @@ const SPAN = { 12: [5, 8], 13: [7, 10], 14: [9, 11], 15: [10, 12], 23: [3, 5], 2
 // main serrée (plus de doigts que de demi-tons) : avec le pouce elle se replie sans peine ;
 // sans lui (Ré au 4 puis Do♯ au 2) elle doit se recaler, un demi-changement de position
 const squeeze = (lo, hi, D) => Math.max(0, hi - lo - D) * (lo === 1 ? 0.6 : 3);
-const CROSS = { 2: [4.5, 2], 3: [3, 4], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher
+const CROSS = { 2: [4.5, 2], 3: [3, 5], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher (sous le 3 jusqu'à la quarte : arpèges)
+// position de cinq doigts : à coût égal, l'écart de doigts suit l'écart de degrés (Do au 1 puis Mi au 3, pas au 2)
+// jusqu'à la quinte seulement, le cadre 1-5 de la position : au-delà c'est un saut, où le doigt d'arrivée prépare la suite
+const natCost = (a, b, df) => { if (a.s == null || b.s == null) return 0; const ds = Math.abs(b.s - a.s); return ds <= 4 ? 0.3 * Math.abs(df - ds) : 0; };
 // coût d'aller de la note a (doigt fa) à la note b (doigt fb) ; kind 1 = la main se déplace (changement de position)
 function fingStep(a, fa, b, fb) {
   const d = b.q - a.q, D = Math.abs(d);
@@ -491,7 +496,7 @@ function fingStep(a, fa, b, fb) {
     const [cm, rm] = SPAN[lo * 10 + hi];
     let c = squeeze(lo, hi, D);
     if (D > rm) return [c + 6 + (D - rm) * 0.5, 1];
-    return [c + Math.max(0, D - cm) * 1.5, 0];
+    return [c + Math.max(0, D - cm) * 1.5 + natCost(a, b, hi - lo), 0];
   }
   if (hi === 1 && lo <= 4) {
     // passage du pouce : plus facile sur un demi-ton, et d'une touche noire vers une blanche (Si♭ au 4, puis Do au pouce)
@@ -505,7 +510,8 @@ const keyCost = (f, black) => black ? (f === 1 ? 2.5 : f === 5 ? 0.5 : 0) : 0;
 function chordTpl(q) {
   const k = q.length, s = q[k - 1] - q[0];
   if (k === 2) return s >= 7 ? [1, 5] : s >= 5 ? [1, 4] : s >= 3 ? [1, 3] : [1, 2];
-  if (k === 3) return s <= 4 ? [1, 2, 3] : s <= 7 || q[1] - q[0] >= q[2] - q[1] ? [1, 3, 5] : [1, 2, 4];
+  // trois notes : accord parfait et 2e renversement 1-3-5, 1er renversement 1-2-5, seconde en haut 1-4-5 (Si-Fa-Sol), seconde en bas 1-2-4 ou 1-2-5
+  if (k === 3) { const i1 = q[1] - q[0], i2 = q[2] - q[1]; return s <= 4 ? [1, 2, 3] : i2 <= 2 ? [1, 4, 5] : i1 <= 2 ? (s <= 6 ? [1, 2, 4] : [1, 2, 5]) : s <= 7 || i1 >= i2 ? [1, 3, 5] : [1, 2, 5]; }
   if (k === 4) return s <= 9 ? [1, 2, 3, 5] : [1, 2, 4, 5];
   return [1, 2, 3, 4, 5];
 }
@@ -520,7 +526,7 @@ function fingCands(ns) {
       // dans un accord, deux doigts voisins sans le pouce tiennent un ton sans effort, pas une tierce (La-Do♯-Mi en 1-2-4, pas 1-2-3)
       for (let i = 1; i < k; i++) {
         const D = ns[i].q - ns[i - 1].q, a = acc[i - 1], b = acc[i], [cm, rm] = SPAN[a * 10 + b], c = a > 1 && b === a + 1 ? Math.min(cm, 2) : cm;
-        cost += D > rm ? 30 : Math.max(0, D - c) * 1.5 + squeeze(a, b, D);
+        cost += D > rm ? 30 : Math.max(0, D - c) * 1.5 + squeeze(a, b, D) + natCost(ns[i - 1], ns[i], b - a);
       }
       if (k > 1 && acc.join() !== tpl) cost += 1.2;
       out.push({ f: acc.slice(), cost }); return;
@@ -541,15 +547,22 @@ function fingTrans(A, ca, B, cb) {
   // saute une tierce (Sol au 5 puis Mi au 5) déplace bien la main
   const stay = (i, j) => A.ns[i].q === B.ns[j].q && ca.f[i] === cb.f[j];
   const soft = (s, i, j) => !s[1] || ca.f[i] === cb.f[j] && Math.abs(A.ns[i].q - B.ns[j].q) <= 2;
+  // d'un accord à l'autre, chaque extrémité tenue ou glissant d'un ton au plus avec le même doigt : la main s'ouvre, se referme
+  // ou se décale à peine, presque sans coût (Do-Mi-Sol, Do-Fa-La, Si-Fa-Sol : le pouce et le 5 ne quittent pas leur place)
+  const ends = (i, j) => stay(i, j) ? 0 : ca.f[i] === cb.f[j] && Math.abs(A.ns[i].q - B.ns[j].q) <= 2 ? 0.5 : -1, e0 = ends(0, 0), e1 = ends(a, b);
+  if (a > 1 && b > 1 && e0 >= 0 && e1 >= 0 && e0 + e1 > 0) return [e0 + e1, 0]; // à partir de trois notes : des tierces liées gardent 1-3, 2-4, 3-5
   if ((a || b) && (stay(0, 0) || stay(a, b) || !x[0] && !x[1] && soft(y, a, b) || !y[0] && !y[1] && soft(x, 0, 0))) return [Math.min(2, x[0] + y[0]), 0];
-  const kind = Math.max(x[1], y[1]);
-  return [(x[0] + y[0]) / 2 * (kind ? slow : 1), kind];
+  // d'un accord à un autre, la main qui se déplace paie le déplacement entier, pas la moyenne avec l'extrémité qui tombait
+  // bien (plafonné entre deux accords plaqués d'au moins trois notes : on déplace la main, on ne cherche pas à les lier) ;
+  // entre un accord et une note seule, la moyenne reste (Sarabande mes. 14 : Do-Fa-La puis La au pouce)
+  const kind = Math.max(x[1], y[1]), avg = (x[0] + y[0]) / 2;
+  return [kind ? (a && b ? Math.min(a > 1 && b > 1 ? 5 : Infinity, Math.max(x[0], y[0])) : avg) * slow : avg, kind];
 }
 function autoFinger(notes) {
   for (const h of ['R', 'L']) {
     const evs = [];
     for (const n of notes) if (n.hand === h) {
-      const e = evs[evs.length - 1], x = { n, q: h === 'R' ? n.midi : -n.midi, black: isBlack(n.midi) };
+      const e = evs[evs.length - 1], x = { n, q: h === 'R' ? n.midi : -n.midi, black: isBlack(n.midi), s: n.step };
       if (e && Math.abs(n.on - e.on) < 0.02) e.ns.push(x); else evs.push({ on: n.on, ns: [x] });
     }
     if (!evs.length) continue;
@@ -560,6 +573,16 @@ function autoFinger(notes) {
       if (fx.some(Boolean)) {
         const keep = e.cands.filter(c => c.f.every((f, k) => !fx[k] || f === fx[k]));
         e.cands = keep.length ? keep : [{ f: fx.map((f, k) => f || Math.min(5, k + 1)), cost: 0 }];
+      }
+    }
+    // gamme chromatique (au moins 6 notes par demi-tons dans le même sens) : le doigté d'école, 3 sur les touches noires, pouce
+    // sur les blanches, 2 sur la seconde de deux blanches voisines (Fa et Do à droite, Mi et Si à gauche) ; un doigt écrit reste
+    for (let i = 0, j; i < evs.length; i = Math.max(j, i + 1)) {
+      const one = k => evs[k] && evs[k].ns.length === 1, dir = one(i) && one(i + 1) ? evs[i + 1].ns[0].q - evs[i].ns[0].q : 0;
+      for (j = i + 1; Math.abs(dir) === 1 && one(j) && evs[j].ns[0].q - evs[j - 1].ns[0].q === dir; j++);
+      if (j - i >= 6) for (let k = i; k < j; k++) {
+        const x = evs[k].ns[0], pcl = x.n.midi % 12, two = pcl === (h === 'R' ? 5 : 4) || pcl === (h === 'R' ? 0 : 11);
+        if (!x.n.fx) evs[k].cands = [{ f: [x.black ? 3 : two && !(k === i && evs[k + 1].ns[0].black) ? 2 : 1], cost: 0 }];
       }
     }
     evs.forEach((e, i) => { // broderie : la ligne repart aussitôt dans l'autre sens, sans venir d'un trait par degrés conjoints
@@ -606,7 +629,7 @@ function autoFinger(notes) {
     solve();
     evs.forEach((e, i) => {
       const ch = !i || fingTrans(evs[i - 1], evs[i - 1].pick, e, e.pick)[1] > 0;
-      e.ns.forEach((x, k) => { x.n.f = e.pick.f[k]; x.n.ch = ch; });
+      e.ns.forEach((x, k) => { x.n.f = e.pick.f[k]; x.n.ch = ch; x.n.calc = !x.n.fx; }); // calc : doigt calculé, dessiné en italique
     });
   }
   return notes;
@@ -631,11 +654,17 @@ function engrave(notes, pc) {
     u.notes.sort((a, b) => a.step - b.step);
     for (const n of u.notes) { const was = n.step in bar ? bar[n.step] : ka[n.step % 7]; n.acc = n.alt !== was ? n.alt : null; bar[n.step] = n.alt; n.dx = 0; }
     u.lo = u.notes[0].step; u.hi = u.notes[u.notes.length - 1].step;
-    u.dur = Math.max(...u.notes.map(n => n.dur));
+    // plusieurs voix dans une main : chaque note garde sa figure (tête, point) ; la hampe, les crochets et les ligatures
+    // suivent la plus courte, celle qui avance ; une ronde tenue reste hors de la hampe
+    for (const n of u.notes) { const s = SYM.find(x => n.dur >= x[0] - 1e-6); n.hd = s[1]; n.dot = s[3]; }
+    u.dur = Math.min(...u.notes.map(n => n.dur));
     const s = SYM.find(x => u.dur >= x[0] - 1e-6); u.hd = s[1]; u.fl = s[2]; u.dot = s[3];
-    u.up = S.mid - u.lo > u.hi - S.mid;
+    const stem = u.notes.filter(n => n.hd !== 'w'), whole = u.notes.filter(n => n.hd === 'w'), mix = stem.length && whole.length;
+    u.slo = stem.length ? stem[0].step : u.lo; u.shi = stem.length ? stem[stem.length - 1].step : u.hi;
+    u.up = mix && whole.every(n => n.step < u.slo) ? true : mix && whole.every(n => n.step > u.shi) ? false : S.mid - u.slo > u.shi - S.mid;
   }
-  const win = num === 3 ? 3 : num === 4 ? 2 : 1;
+  // ligatures : par temps du métronome en mesure composée (trois croches en 6/8), sinon par mesure en 3/4, par demi-mesure en 4/4
+  const pu = pulseOf(pc), win = pu === 1 ? (num === 3 ? 3 : num === 4 ? 2 : 1) : pu < 1 ? num : pu > 2 ? 1 : pu;
   for (const h of ['R', 'L']) {
     let g = null, p = null;
     for (const u of units) if (u.hand === h) {
@@ -645,13 +674,13 @@ function engrave(notes, pc) {
     }
   }
   for (const g of beams) {
-    const S = STAFF[g[0].st], lo = Math.min(...g.map(u => u.lo)), hi = Math.max(...g.map(u => u.hi));
+    const S = STAFF[g[0].st], lo = Math.min(...g.map(u => u.slo)), hi = Math.max(...g.map(u => u.shi));
     g.up = S.mid - lo > hi - S.mid; g.step = g.up ? hi + 7 : lo - 7;
     for (const u of g) { u.up = g.up; u.beam = g; }
   }
   for (const u of units) {
     const S = STAFF[u.st], ns = u.notes;
-    u.tip = u.beam ? u.beam.step : u.up ? Math.max(u.hi + 7 + (u.fl > 1 ? 1 : 0), S.mid) : Math.min(u.lo - 7 - (u.fl > 1 ? 1 : 0), S.mid);
+    u.tip = u.beam ? u.beam.step : u.up ? Math.max(u.shi + 7 + (u.fl > 1 ? 1 : 0), S.mid) : Math.min(u.slo - 7 - (u.fl > 1 ? 1 : 0), S.mid);
     if (u.up) { for (let i = 1; i < ns.length; i++) if (ns[i].step - ns[i - 1].step === 1 && !ns[i - 1].dx) ns[i].dx = 1; }
     else for (let i = ns.length - 2; i >= 0; i--) if (ns[i + 1].step - ns[i].step === 1 && !ns[i + 1].dx) ns[i].dx = -1;
     let prev = null;
@@ -766,6 +795,11 @@ function parseMusicXml(text, name) {
       let cur = 0, len = 0, last = null; const notes = [], ms = { notes, fwd: false, back: 0, end: inEnd, implicit: m.getAttribute('implicit') === 'yes' };
       for (const el of m.children) {
         const t = el.nodeName;
+        if (pi === 0 && (t === 'direction' || t === 'sound')) { // renvois : D.C., D.S., signe, Fine, coda
+          const s = t === 'sound' ? el : el.querySelector('sound');
+          if (s) for (const a of ['dacapo', 'dalsegno', 'segno', 'fine', 'tocoda', 'coda']) if (s.hasAttribute(a)) ms[a] = true;
+          if (/\b(D\.? ?C\.?|D\.? ?S\.?|da capo|dal segno)\b/i.test(el.textContent)) ms.jumpWords = true;
+        }
         if (t === 'attributes') {
           const dv = +txt(el, 'divisions'); if (dv > 0) div = dv;
           const k = kid(el, 'key'); if (k && key === null && kid(k, 'fifths')) key = Math.max(-7, Math.min(7, +txt(k, 'fifths') || 0));
@@ -820,13 +854,30 @@ function parseMusicXml(text, name) {
     if (ms.back) { pass = 1; start = i + 1; }
     i++;
   }
-  // 3. mesures mises bout à bout ; une anacrouse est calée sur la fin de la 1re mesure
-  const raw = []; let off = 0;
+  // D.C. / D.S. : on repart du début (ou du signe) sans refaire les reprises, jusqu'à « Fine » ou jusqu'au renvoi à la coda
+  const jm = PM[0].findIndex(ms => ms.dacapo || ms.dalsegno), cut = jm < 0 ? -1 : order.lastIndexOf(jm);
+  if (cut >= 0) {
+    const rest = order.splice(cut + 1), coda = PM[0].findIndex(ms => ms.coda);
+    let tail = true;
+    for (let i = PM[0][jm].dalsegno ? Math.max(0, PM[0].findIndex(ms => ms.segno)) : 0; i <= jm && tail; i++) {
+      const ms = PM[0][i];
+      if (ms.end && ms.end.includes(1)) continue;
+      order.push(i);
+      if (ms.fine) tail = false;
+      else if (ms.tocoda && coda > i) { for (let c = coda; c < M; c++) order.push(c); tail = false; }
+    }
+    if (tail) order.push(...rest);
+  }
+  const lostJump = cut < 0 && PM[0].some(ms => ms.jumpWords);
+  // 3. mesures mises bout à bout, chacune à sa vraie durée : une mesure coupée en deux (levée d'une reprise, fin de ligne)
+  //    ne laisse pas de silence ; l'anacrouse du début est calée sur la fin de la 1re mesure
+  const raw = []; let off = 0, irregular = false;
   order.forEach((mi, k) => {
     const len0 = Math.max(...PM.map(p => (p[mi] || { len: 0 }).len));
     const pick = k === 0 && len0 > 0 && len0 < num - 1e-6 && (PM[0][mi].implicit || mi === 0) ? num - len0 : 0;
+    if (len0 >= num - 1e-6 && Math.abs(off / num - Math.round(off / num)) > 1e-3) irregular = true; // une mesure entière qui ne tombe plus sur une barre
     for (const p of PM) for (const n of (p[mi] || { notes: [] }).notes) raw.push(Object.assign({}, n, { on: off + pick + n.on }));
-    off += Math.max(num, pick ? num : len0);
+    off += pick ? num : len0 > 1e-6 ? len0 : num;
   });
   // 4. notes liées fondues en une seule (même portée, même hauteur, qui se suivent)
   raw.sort((a, b) => a.on - b.on || a.midi - b.midi);
@@ -848,7 +899,8 @@ function parseMusicXml(text, name) {
   const credit = [...root.getElementsByTagName('credit-words')].map(c => c.textContent.trim()).find(Boolean);
   const title = txt(kid(root, 'work'), 'work-title') || txt(root, 'movement-title') || credit || name.replace(/\.(musicxml|xml|mxl)$/i, '');
   const notesTxt = [data.length + ' notes', fing ? fing + ' doigtés écrits' : 'doigtés calculés'];
-  const warn = [timeChanged && 'changement de mesure : barres de mesure approximatives', dropped && dropped + ' autre' + (dropped > 1 ? 's parties ignorées' : ' partie ignorée')].filter(Boolean);
+  const warn = [timeChanged ? 'changement de mesure : barres de mesure approximatives' : irregular && 'mesures irrégulières : barres de mesure approximatives',
+    lostJump && 'renvois (D.C., D.S.) écrits mais non suivis', dropped && dropped + ' autre' + (dropped > 1 ? 's parties ignorées' : ' partie ignorée')].filter(Boolean);
   return { id: 'imp-' + Date.now(), title: title.slice(0, 80), sub: (comp ? comp.textContent.trim().slice(0, 40) + ' · ' : '') + notesTxt.join(' · '), bpm: Math.round(bpm) || 80, num, tn: beats, td: btype,
     key: key === null ? guessKey(data) : key, clefL: clef2 === 'G' ? 'G' : undefined, hands: 'B', pct: 70,
     src: 'Fichier MusicXML importé, gardé sur cet appareil.' + (warn.length ? ' ' + warn.join(' ; ') + '.' : ''), data, warn };
@@ -943,12 +995,12 @@ function metroCancel() {
 function metroRun() {
   const live = view === 'play' && P && P.running && !P.done && !P.wait;
   if (!live || !(SET.metro || (P.mode === 'tempo' && P.t < P.cue))) { if (METRO.nodes.length) metroCancel(); return; }
-  const spb = 60 / P.bpm, num = P.pc.num;
+  const spb = 60 / P.bpm, num = P.pc.num, pu = pulseOf(P.pc); // un clic par temps du métronome (pu noires)
   const from = P.tPrev === undefined ? P.t : P.tPrev; // le temps d'où le moteur vient de partir : ne pas sauter le 1er clic
-  if (METRO.next === null || METRO.next < from - 1e-6 || METRO.next > P.t + 1 + METRO_AHEAD / spb + 1e-6) METRO.next = Math.ceil(from - 1e-6);
+  if (METRO.next === null || METRO.next < from - 1e-6 || METRO.next > P.t + pu + METRO_AHEAD / spb + 1e-6) METRO.next = Math.ceil(from / pu - 1e-6) * pu;
   if (AC) METRO.nodes = METRO.nodes.filter(c => c.at > AC.currentTime - 0.2);
   while (METRO.next <= P.t + METRO_AHEAD / spb) {
-    const b = METRO.next; METRO.next = b + 1;
+    const b = METRO.next; METRO.next = b + pu;
     if (SET.metro || b < P.cue) metroClick(b, acAt((b - P.t) * spb), Math.abs(b / num - Math.round(b / num)) < 1e-6);
   }
 }
@@ -985,7 +1037,7 @@ function send(m, vel, ms, delayMs) {
 // heure d'un événement sur l'horloge de performance.now() (celle des clics programmés) ; sinon maintenant
 function evTime(e) { const n = performance.now(), t = e && e.timeStamp; return t > n - 5000 && t <= n + 5 ? t : n; }
 function noteOn(m, vel, src, at) {
-  MIDI.down.add(m);
+  MIDI.down.add(m); lastInput = performance.now(); wake();
   if (CAL.on) calPress(at === undefined ? performance.now() : at);
   if (src !== 'midi') { synth(m, 0.7, vel); }
   logMsg(`note on   ${String(m).padStart(3)} ${FRM[m % 12].padEnd(5)} vél ${vel}`);
@@ -1016,7 +1068,7 @@ class Player {
   constructor(pc) {
     this.pc = pc; this.notes = pc.notes.map((n, i) => Object.assign({}, n, { i }));
     const fix = LS.get('fing-' + pc.id, {});
-    for (const i in fix) if (this.notes[i] && fix[i] >= 1 && fix[i] <= 5) this.notes[i].f = fix[i];
+    for (const i in fix) if (this.notes[i] && fix[i] >= 1 && fix[i] <= 5) { this.notes[i].f = fix[i]; this.notes[i].calc = false; }
     this.score = engrave(this.notes, pc);
     const st = LS.get('p-' + pc.id, {});
     this.hands = st.hands || pc.hands; this.pct = st.pct || pc.pct; this.mode = st.mode || 'wait';
@@ -1095,8 +1147,12 @@ class Player {
         else { w.miss = true; this.extra++; this.flash(m, 'err'); }
         return;
       }
-      const ahead = this.notes.find(n => n.st === 'pend' && this.req(n) && n.midi === m && !n.pre && n.on - this.t <= 0.6);
-      if (ahead) { ahead.pre = true; ahead.vel = vel; this.flash(m, 'ok'); } else this.flash(m, 'err');
+      // l'élève mène : la bonne note du prochain groupe compte, même très en avance ; le groupe complet, le moteur saute jusqu'à lui
+      const todo = this.notes.filter(n => n.st === 'pend' && this.req(n) && !n.pre);
+      const on = todo.length ? Math.min(...todo.map(n => n.on)) : 0, grp = todo.filter(n => n.on <= on + 0.06), hit = grp.find(n => n.midi === m);
+      if (!hit) { this.flash(m, 'err'); return; }
+      hit.pre = true; hit.vel = vel; this.flash(m, 'ok');
+      if (grp.length === 1 && on - this.t > 0.6) this.jump(on);
       return;
     }
     if (!this.running) return;
@@ -1109,10 +1165,21 @@ class Player {
     else { this.extra++; this.flash(m, 'err'); }
   }
   flash(m, k) { this.flashes.push({ m, k, until: performance.now() + 300 }); }
+  // saut jusqu'au temps on (mode attente, l'élève joue plus vite que le tempo réglé) : ce qu'il a déjà joué est juste,
+  // les notes de l'autre main qu'on enjambe ne sonnent pas
+  jump(on) {
+    for (const n of this.notes) if (n.st === 'pend' && n.on < on - 1e-6) n.st = this.req(n) ? 'ok' : 'auto';
+    this.t = on; metroCancel(); METRO.next = null;
+  }
   end() {
     if (this.mode === 'demo') { if (this.loop) this.reset(); else { this.done = true; toast('Fin de la démo'); syncBar(); } return; }
     const r = this.result();
-    const best = LS.get('best-' + this.pc.id, 0); if (r.acc > best) LS.set('best-' + this.pc.id, r.acc);
+    // meilleur score : seulement le morceau joué en entier, sans rien sauter ; on garde avec quelle main et à quel tempo
+    const full = this.m0 === 1 && this.m1 === this.pc.measures && !this.notes.some(n => n.st === 'skip');
+    const best = LS.get('best-' + this.pc.id, 0), how = LS.get('bestk-' + this.pc.id, null), rank = h => h === 'B' ? 1 : 0;
+    if (full && r.tot && (r.acc > best || r.acc === best && (!how || rank(this.hands) > rank(how.h) || rank(this.hands) === rank(how.h) && this.pct > how.p))) {
+      LS.set('best-' + this.pc.id, r.acc); LS.set('bestk-' + this.pc.id, { h: this.hands, p: this.pct });
+    }
     if (this.loop) { toast('Tour terminé · ' + r.acc + ' %'); this.reset(); return; }
     this.done = true; showResult(r);
   }
@@ -1207,7 +1274,7 @@ function drawFall() {
       const r = Math.min(w / 2 - 2, 9.5), cy = y2 - r - 5;
       hit(x + w / 2 - r - 8, cy - r - 8, x + w / 2 + r + 8, cy + r + 8, n, 2);
       ctx.fillStyle = 'rgba(10,12,18,.32)'; ctx.beginPath(); ctx.arc(x + w / 2, cy, r, 0, 7); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff'; ctx.font = `${n.calc ? 'italic 500' : '700'} ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(String(n.f), x + w / 2, cy + 0.5);
     }
   }
@@ -1238,7 +1305,7 @@ function drawKeys(st) {
     hit(p.x + p.w / 2 - r - 6, cy - r - 6, p.x + p.w / 2 + r + 6, cy + r + 6, s.n, 2);
     ctx.fillStyle = COL[s.hand]; ctx.strokeStyle = COL.bg; ctx.lineWidth = 1.2;
     ctx.beginPath(); ctx.arc(p.x + p.w / 2, cy, r, 0, 7); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#10131a'; ctx.font = `700 ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#10131a'; ctx.font = `${s.n.calc ? 'italic 500' : '700'} ${Math.round(r * 1.3)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(String(s.f), p.x + p.w / 2, cy + 0.5);
   }
 }
@@ -1346,15 +1413,15 @@ function drawUnit(u, x) {
     const c = headCol(n); ctx.fillStyle = c; ctx.strokeStyle = c;
     if (n.acc !== null) drawAcc(n.acc, x - 1.75 * sp - left - n.col * 1.3 * sp, ny, sp);
     ctx.beginPath();
-    if (u.hd === 'w') { ell(hx, ny, .8 * sp, .5 * sp, 0); ell(hx, ny, .36 * sp, .28 * sp, 1.0); }
-    else { ell(hx, ny, .62 * sp, .43 * sp, -0.38); if (u.hd === 'h') ell(hx, ny, .5 * sp, .2 * sp, -0.38); }
+    if (n.hd === 'w') { ell(hx, ny, .8 * sp, .5 * sp, 0); ell(hx, ny, .36 * sp, .28 * sp, 1.0); }
+    else { ell(hx, ny, .62 * sp, .43 * sp, -0.38); if (n.hd === 'h') ell(hx, ny, .5 * sp, .2 * sp, -0.38); }
     ctx.fill('evenodd');
-    if (u.dot) { ctx.beginPath(); ctx.arc(hx + 1.1 * sp, ((n.step - S.bot) % 2 + 2) % 2 ? ny : ny - sp / 2, .17 * sp, 0, 7); ctx.fill(); }
+    if (n.dot) { ctx.beginPath(); ctx.arc(hx + 1.1 * sp, ((n.step - S.bot) % 2 + 2) % 2 ? ny : ny - sp / 2, .17 * sp, 0, 7); ctx.fill(); }
   }
   ctx.fillStyle = ctx.strokeStyle = INK.ink;
   if (u.hd !== 'w') {
     const sx = x + (u.up ? .57 : -.57) * sp, to = y(u.tip);
-    ctx.lineWidth = Math.max(1, sp * 0.12); ln(sx, y(u.up ? u.lo : u.hi), sx, to);
+    ctx.lineWidth = Math.max(1, sp * 0.12); ln(sx, y(u.up ? u.slo : u.shi), sx, to);
     if (!u.beam) for (let k = 0; k < u.fl; k++) flag(sx, to, u.up ? 1 : -1, k);
   }
   drawDigits(u, x);
@@ -1381,8 +1448,9 @@ function drawDigits(u, x) {
     if (stem && u.up) bottom = Math.min(bottom, y(u.tip) - .9 * sp);
     top = bottom - (ns.length - 1) * lh;
   } else top = stem && !u.up ? y(u.hi) - 1.35 * sp - (ns.length - 1) * lh : y(u.lo) + 1.5 * sp;
-  ctx.font = `700 ${Math.round(sp * 1.1)}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = INK[u.hand];
-  ns.slice().reverse().forEach((n, i) => { ctx.fillText(String(n.f), x, top + i * lh); hit(x - .9 * sp, top + i * lh - lh / 2, x + .9 * sp, top + i * lh + lh / 2, n, 2); });
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = INK[u.hand];
+  // droit et gras : doigt écrit dans la partition ou choisi ; italique : calculé par Legato
+  ns.slice().reverse().forEach((n, i) => { ctx.font = `${n.calc ? 'italic 500' : '700'} ${Math.round(sp * 1.1)}px system-ui,sans-serif`; ctx.fillText(String(n.f), x, top + i * lh); hit(x - .9 * sp, top + i * lh - lh / 2, x + .9 * sp, top + i * lh + lh / 2, n, 2); });
 }
 function drawScore() {
   const W = KB.W, hy = KB.hitY, sp = SC.sp, num = P.pc.num, X = on => SC.ph + (on - P.t) * SC.ppb;
@@ -1430,7 +1498,14 @@ const MODES = ['wait', 'tempo', 'demo'], MODEL = { wait: 'Attente', tempo: 'Temp
 const VIEWS = {
   fall: ['Vue : notes qui tombent', '<svg viewBox="0 0 24 24"><path d="M6 4v8M12 8v6M18 3v5" style="stroke-width:3.4"/><path d="M3 19.5h18"/></svg>'],
   score: ['Vue : partition qui défile', '<svg viewBox="0 0 24 24"><path d="M2 8h20M2 12h20M2 16h20"/><ellipse cx="8.6" cy="16" rx="2.9" ry="2.1" transform="rotate(-22 8.6 16)" style="fill:currentColor;stroke:none"/><path d="M11.2 15.3V3.8"/></svg>'] };
-let lastFrame = performance.now(), wakeLock = null, toastT = 0;
+let lastFrame = performance.now(), wakeLock = null, wakeReq = false, toastT = 0, lastInput = -1e9, lastActive = performance.now();
+const IDLE_MS = 15000, SLEEP_MS = 300000;
+function wake() {
+  lastActive = performance.now();
+  if (view !== 'play' || wakeLock || wakeReq || !navigator.wakeLock) return;
+  wakeReq = true;
+  navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {}).then(() => { wakeReq = false; });
+}
 function openPiece(pc) {
   build(pc); ac(); loadPiano(); LS.set('last', pc.id);
   P = new Player(pc); setRangeKeys(pc.notes);
@@ -1439,8 +1514,7 @@ function openPiece(pc) {
   $('#p-m0').innerHTML = opts; $('#p-m1').innerHTML = opts; $('#p-m0').value = 1; $('#p-m1').value = pc.measures;
   $('#p-loop').checked = false; $('#p-hd').checked = SET.hands; $('#p-acc').value = SET.accomp;
   $('#p-res').hidden = true; $('#p-sheet').hidden = true;
-  show('play'); layout(); navBuild(); syncBar();
-  if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
+  show('play'); layout(); navBuild(); syncBar(); wake();
 }
 function syncBar() {
   document.querySelectorAll('#p-hands button').forEach(b => b.classList.toggle('on', b.dataset.h === P.hands));
@@ -1476,7 +1550,7 @@ function showResult(r) {
   const both = P.hands === 'B' && r.vR && r.vL;
   const bal = !both ? '' : r.vL > r.vR + 10 ? 'La main gauche couvre la mélodie.' : r.vR > r.vL + 10 ? 'Mélodie bien devant.' : 'Les deux mains au même niveau.';
   const w0 = weak ? Math.max(P.m0, weak.m - (weak.m > P.m0 ? 1 : 0)) : 0, w1 = weak ? Math.min(P.m1, w0 + 1) : 0;
-  $('#p-resbox').innerHTML = `<h3>Bilan · ${P.pc.title} · mes. ${P.m0}-${P.m1} · ${P.hands === 'B' ? '2 mains' : P.hands === 'R' ? 'main droite' : 'main gauche'}</h3>
+  $('#p-resbox').innerHTML = `<h3>Bilan · ${esc(P.pc.title)} · mes. ${P.m0}-${P.m1} · ${P.hands === 'B' ? '2 mains' : P.hands === 'R' ? 'main droite' : 'main gauche'}</h3>
     <div class="mets">
       <div class="met"><span>Justesse</span><b>${r.acc} %</b><small>${r.ok} / ${r.tot} notes${r.extra ? ' · ' + r.extra + ' fausses notes' : ''}</small></div>
       ${P.mode === 'tempo' && r.dts.length ? `<div class="met"><span>Rythme</span><b>± ${abs} ms</b><small>${Math.abs(bias) < 15 ? 'bien en place' : bias < 0 ? 'plutôt en avance' : 'plutôt en retard'}${SET.latency ? ' · latence de ' + SET.latency + ' ms déduite' : ''}</small></div>` : `<div class="met"><span>Rythme</span><b>-</b><small>mesuré en mode tempo</small></div>`}
@@ -1495,11 +1569,14 @@ function frame(now) {
   const gap = (now - lastFrame) / 1000, dt = gap > 0.25 ? 0 : gap; lastFrame = now;
   if (view === 'play' && P) {
     P.step(dt); metroRun(); draw();
-    if (P.running && !P.done && P.mode !== 'demo') addPractice(dt);
+    countPractice(dt, now);
+    // écran : on le laisse s'éteindre après 5 min sans note, sans toucher l'écran et sans que le morceau avance
+    if (P.running && !P.done && !P.wait) lastActive = now;
+    if (wakeLock && now - lastActive > SLEEP_MS) { wakeLock.release().catch(() => {}); wakeLock = null; }
     const w = $('#p-wait');
     w.hidden = !P.wait || SET.view === 'score'; if (!w.hidden) w.textContent = 'Joue ' + [...new Set(P.wait.grp.map(n => n.fr))].join(' + ');
     const c = $('#p-count'), left = P.cue - P.t;
-    c.hidden = !(P.mode === 'tempo' && P.running && left > 0 && left <= P.pc.num + 1e-6); if (!c.hidden) c.textContent = Math.ceil(left);
+    c.hidden = !(P.mode === 'tempo' && P.running && left > 0 && left <= P.pc.num + 1e-6); if (!c.hidden) c.textContent = Math.ceil(left / pulseOf(P.pc) - 1e-6);
     navSync();
   } else metroRun();
   requestAnimationFrame(frame);
@@ -1539,6 +1616,8 @@ function addPractice(sec) {
   const k = dayKey(new Date()); practice[k] = (practice[k] || 0) + sec; practiceUnsaved += sec;
   if (practiceUnsaved > 5) savePractice();
 }
+// temps joué : seulement quand on joue (une note dans les 15 dernières secondes), pas quand un morceau reste ouvert
+function countPractice(dt, now) { if (P.running && !P.done && P.mode !== 'demo' && now - lastInput < IDLE_MS) addPractice(dt); }
 function savePractice() { practiceUnsaved = 0; LS.set('practice', practice); }
 function streak() {
   const d = new Date(); let n = 0;
@@ -1565,10 +1644,11 @@ function miniKeys(pc) {
   return `<svg viewBox="0 0 ${whites.length * 20} 58" role="img" aria-label="Doigtés de la gamme de ${esc(shortScale(pc))} majeur">${w}${b}${dots}</svg>`;
 }
 function progRow(pc, del) {
-  const best = LS.get('best-' + pc.id, 0);
-  const lvl = pc.lvl ? `<span title="niveau ${pc.lvl} sur 3" style="color:var(--rh);letter-spacing:-1px">${'●'.repeat(pc.lvl)}${'○'.repeat(3 - pc.lvl)}</span> ` : '';
+  const best = LS.get('best-' + pc.id, 0), how = LS.get('bestk-' + pc.id, null);
+  const bestTxt = !best ? 'à jouer' : best + ' %' + (how ? ' · ' + ({ B: '2 mains', R: 'MD', L: 'MG' })[how.h] : '');
+  const lvl =pc.lvl ? `<span title="niveau ${pc.lvl} sur 3" style="color:var(--rh);letter-spacing:-1px">${'●'.repeat(pc.lvl)}${'○'.repeat(3 - pc.lvl)}</span> ` : '';
   return `<div class="prow" role="button" tabindex="0" data-open="${esc(pc.id)}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lvl}${esc(pc.title)}<span> · ${esc(pc.sub)}</span></b>`
-    + `<span>${best ? best + ' %' : 'à jouer'}</span>${del ? `<button class="x" type="button" data-del="${esc(pc.id)}" aria-label="Supprimer ${esc(pc.title)}">✕</button>` : '<span></span>'}<i><b style="width:${best}%"></b></i></div>`;
+    + `<span${how ? ` title="morceau entier, à ${how.p} % du tempo"` : ''}>${bestTxt}</span>${del ? `<button class="x" type="button" data-del="${esc(pc.id)}" aria-label="Supprimer ${esc(pc.title)}">✕</button>` : '<span></span>'}<i><b style="width:${best}%"></b></i></div>`;
 }
 function renderHome() {
   const done = SCALES.filter(p => LS.get('best-' + p.id, 0) >= 90), next = SCALES.find(p => LS.get('best-' + p.id, 0) < 90) || SCALES[0];
@@ -1601,12 +1681,27 @@ function show(v) {
   if (v === 'home') { savePractice(); renderHome(); }
   if (v === 'diag') renderDiag();
   if (v !== 'play') closePicker();
-  window.scrollTo(0, 0);
+  window.scrollTo(0, 0); histSync();
 }
+// geste retour d'Android : une entrée d'historique tant qu'on n'est pas à l'accueil ; le retour ferme la couche du dessus
+// (choix du doigt, réglages du passage), sinon ramène à l'accueil, au lieu de quitter l'appli en plein morceau
+const HIST = { guard: false, backing: false };
+function histSync() {
+  if (HIST.backing) return;
+  if (view !== 'home' && !HIST.guard) { history.pushState({ legato: 1 }, ''); HIST.guard = true; }
+  else if (view === 'home' && HIST.guard) { HIST.guard = false; HIST.backing = true; history.back(); }
+}
+window.addEventListener('popstate', () => {
+  if (HIST.backing) { HIST.backing = false; histSync(); return; }
+  HIST.guard = false;
+  if (view === 'home') return;
+  if (view === 'play' && (PK || !$('#p-sheet').hidden)) { closePicker(); $('#p-sheet').hidden = true; histSync(); }
+  else show('home');
+});
 document.addEventListener('click', e => {
   const go = e.target.closest('[data-go]'); if (go) { show(go.dataset.go); return; }
   const del = e.target.closest('[data-del]');
-  if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); try { localStorage.removeItem('legato-fing-' + del.dataset.del); } catch (err) {} renderHome(); return; }
+  if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); try { for (const k of ['fing-', 'best-', 'bestk-', 'p-']) localStorage.removeItem('legato-' + k + del.dataset.del); } catch (err) {} renderHome(); return; }
   const ct = e.target.closest('[data-cat]'); if (ct) { catAdd(ct.dataset.cat); return; }
   const o = e.target.closest('[data-open]'); if (o && findPiece(o.dataset.open)) openPiece(findPiece(o.dataset.open));
 });
@@ -1775,8 +1870,9 @@ function scrubEnd() {
   toast('Mesure ' + (Math.floor(b / P.pc.num + 1e-6) + 1) + (b % P.pc.num ? ', temps ' + (b % P.pc.num + 1) : ''));
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && view === 'play' && navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { wakeLock = l; }).catch(() => {});
+  if (document.visibilityState === 'visible') { wakeLock = null; wake(); }
 });
+document.addEventListener('pointerdown', wake, true);
 
 /* ---------- claviers de secours : écran et ordinateur ---------- */
 const ptr = {};
@@ -1831,7 +1927,7 @@ function closePicker() {
 // f = 0 : revenir au doigté du morceau (écrit ou calculé)
 function setFinger(n, f) {
   const k = 'fing-' + P.pc.id, fix = LS.get(k, {});
-  if (f) { fix[n.i] = f; n.f = f; } else { delete fix[n.i]; n.f = P.pc.notes[n.i].f; }
+  if (f) { fix[n.i] = f; n.f = f; n.calc = false; } else { delete fix[n.i]; n.f = P.pc.notes[n.i].f; n.calc = P.pc.notes[n.i].calc; }
   if (Object.keys(fix).length) LS.set(k, fix); else try { localStorage.removeItem('legato-' + k); } catch (e) {}
 }
 $('#p-fpick').addEventListener('click', e => {

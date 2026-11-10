@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v13 vérifiée en ligne (2026-11-10, `8c30130`** : doigtés calculés revus, Sarabande mes. 2 et 10 en 1-2-4, mes. 14-15 dans une seule position ; worker `v=13`, 119 / 119 sur kkjsf.github.io en 800 x 360 au 2e passage, le 1er n'ayant raté que le métronome en temps réel, volet masqué ; Sarabande perso absente en ligne, 120 / 120 en local avec elle) ; **v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v14 prête en local (2026-11-10), NI COMMITÉE NI DÉPLOYÉE** : revue complète corrigée (9 bugs + doigtés), 133 / 133 tests, détail dans la section v14 ; **v13 vérifiée en ligne (2026-11-10, `8c30130`** : doigtés calculés revus, Sarabande mes. 2 et 10 en 1-2-4, mes. 14-15 dans une seule position ; worker `v=13`, 119 / 119 sur kkjsf.github.io en 800 x 360 au 2e passage, le 1er n'ayant raté que le métronome en temps réel, volet masqué ; Sarabande perso absente en ligne, 120 / 120 en local avec elle) ; **v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,126 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Essayé sur le vrai
 P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v14 (2026-11-10, EN LOCAL : ni commitée ni déployée) : la revue corrigée, doigtés revus
+
+Simon : « Oui, corrige », puis « + les doigtés ». Les 9 points « ne marche pas » de la revue ci-dessous et les doigtés
+calculés. **133 / 133 tests** en 800 x 360 (13 nouveaux, section 9 de `tools/test_engine.js`). Reste à faire pour
+livrer : commit, push, vérifier en ligne (worker `v=14`).
+
+- **Mode attente, l'élève mène** (`Player.input`, `Player.jump`) : la bonne note du prochain groupe pas encore joué
+  compte toujours ; au-delà de 0,6 temps d'avance, le groupe complet fait sauter le moteur jusqu'à lui (les notes de
+  l'autre main enjambées ne sonnent pas, celles déjà jouées en avance passent en `ok`). Une note qui n'est pas dans
+  le prochain groupe reste un flash rouge sans pénalité.
+- **Meilleur score** (`Player.end`) : enregistré seulement pour le morceau entier sans note sautée ; `legato-bestk-<id>`
+  = { h, p } garde la main et le tempo du meilleur passage (à égalité : deux mains avant une main, puis le tempo le
+  plus haut). L'accueil affiche « 100 % · MD ». Les scores gonflés déjà sur le téléphone ne sont pas corrigés.
+  Supprimer un import efface aussi `best-`, `bestk-`, `p-`.
+- **Temps joué** (`countPractice`) : compté seulement si une note a été jouée dans les 15 dernières secondes
+  (`IDLE_MS`). **Écran** : le Wake Lock est relâché après 5 min sans note, sans toucher l'écran et sans que le morceau
+  avance (`SLEEP_MS`), repris à la première note ou au premier appui (`wake`).
+- **Import MusicXML** : chaque mesure garde sa vraie durée (une mesure coupée en 2 + 1 temps autour d'une reprise ne
+  laisse plus de silence ; une mesure vide vaut une mesure entière) ; avertissement « mesures irrégulières » si une
+  mesure entière ne tombe plus sur une barre. **D.C. / D.S. suivis** quand le fichier porte `<sound dacapo / dalsegno /
+  segno / fine / tocoda / coda>` : 2e passage sans les reprises (1res fois sautées), arrêt à Fine ou saut à la coda ;
+  renvoi seulement écrit en texte = avertissement « renvois écrits mais non suivis ».
+- **Mesures composées** (`pulseOf`) : temps du métronome = noire pointée en 6/8, 9/8, 12/8 (blanche pointée en 6/4),
+  croche dans les autres x/8 ; clics, décompte affiché et ligatures (trois croches) suivent. Les x/2 restent à la noire
+  (la Sarabande en 3/2 garde ses 6 clics : pas touché, à décider).
+- **Deux voix dans une main** (`engrave`) : chaque note a sa figure (`n.hd`, `n.dot`) ; hampe, crochets et ligatures
+  suivent la plus courte (`u.dur` = min) ; une ronde tenue reste hors de la hampe (`u.slo` / `u.shi`), la hampe part à
+  l'opposé. Pas de vraies voix séparées (une seule hampe par attaque).
+- **XSS** : titre échappé dans le bilan. **Retour Android** (`HIST`, `histSync`, `popstate`) : une entrée d'historique
+  hors de l'accueil ; le retour ferme le choix du doigt ou les réglages du passage, sinon ramène à l'accueil. Pas
+  essayé sur un vrai téléphone.
+- **Doigtés calculés** : `natCost` (jusqu'à la quinte, l'écart de doigts suit l'écart de degrés, 0,3 par cran : Do au
+  1 puis Mi au 3) ; modèles d'accords de trois notes (`chordTpl` : 1er renversement 1-2-5, seconde en haut 1-4-5,
+  seconde en bas 1-2-4 ou 1-2-5) ; d'un accord de trois notes à un autre, extrémités tenues ou glissant d'un ton au
+  plus avec le même doigt = 0,5 par extrémité ; déplacement d'accord à accord = le plus grand des deux côtés (plus la
+  moyenne), plafonné à 5 entre accords de trois notes, la moyenne gardée entre accord et note seule (Sarabande mes. 14) ;
+  passage du pouce sous le 3 sans surcoût jusqu'à la quarte (`CROSS[3]`, arpèges) ; **gamme chromatique** reconnue (6
+  demi-tons de suite : 3 sur les noires, pouce sur les blanches, 2 sur Fa et Do à droite, Mi et Si à gauche).
+  **Affichage** : doigt calculé en italique (`n.calc`), doigt écrit ou choisi droit et gras ; dit dans ⚙.
+  Mesures : **22 motifs d'école, 18 justes (9 en v13)** ; restent MG arpège de Do en 5-3-2-1 (variante admise), La
+  mineur harmonique (passage après le 4), MG Do majeur sur deux octaves (connu). Gammes inchangées (22 / 24, 17 / 24),
+  Sarabande inchangée (mes. 2 en 1-2-4, mes. 14-15 en une position). **Catalogue : 56,68 -> 59,39 %** de 12 944 doigts
+  écrits (82 pièces ; 44 mieux, 32 moins bien). Plus forts reculs : Valse en la mineur B.150 de Chopin 76 -> 47 %,
+  160 Kurze Übungen de Czerny 64 -> 46 %, Album pour la jeunesse 57 -> 46 % (lignes mélodiques décalées d'un doigt :
+  après un saut de quarte l'éditeur met le 2, le calcul le 3). Recette du banc : `git show <commit>:index.html >
+  perso/old.html`, l'ouvrir dans un iframe caché de la page servie, `iframe.contentWindow.build` contre `build` sur les
+  mêmes `data` sans doigts écrits (catalogue : pièces avec `it[6] >= 20` et `it[5] <= 2500`).
+- **Piège serveur de test** : `preview_start` peut attribuer le port 8134 alors que Python écoute sur 8133 (argument
+  en dur) ; après un `preview_stop`, le processus Python peut survivre et le navigateur ne plus joindre que le cache
+  du worker (« Failed to fetch » sur tout fichier non caché). Tuer le Python resté sur 8133, puis relancer.
+
+**Pas fait dans la v14** : toute la partie « Ergonomie » et « Petits » de la revue (carte Répertoire, barre des mesures
+des longues pièces, imports dans IndexedDB, tempo au-delà de 100 %, piano débranché, reprise à la mesure...).
+
+### Revue complète (2026-11-10, sur la v13 ; points 1 à 9 et doigtés corrigés en v14, ergonomie et « petits » à faire)
+
+Demande de Simon : « revue complète, pointe du doigt ce qui ne marche pas, ce qui pourrait être mieux ». Code lu en
+entier, appli servie en local en 800 x 360, 120 / 120 tests avant. Chaque point ci-dessous a été reproduit, sauf
+mention « lu dans le code ». Échantillon catalogue = 1 pièce sur 4 de `perso/legato-catalogue.zip` (651 pièces,
+0 erreur d'import, doigté calculé en 2 ms en médiane, 620 ms au pire).
+
+**Ne marche pas (confirmé)**
+1. **Import MusicXML : une mesure incomplète au milieu du morceau est complétée par du silence**
+   (`parseMusicXml`, étape 3, `off += Math.max(num, ...)`). Levée + reprise, mesure coupée en 2 + 1 temps : le
+   morceau gagne des silences qui n'existent pas, sans avertissement. Amazing Grace du catalogue
+   (`QmZaM6TQAnnkNmey`, mesures XML « 1 3 3 3 2 1 3... ») : 6 temps de trou dans la mélodie. **24 % de
+   l'échantillon** (157 pièces sans changement de mesure ; 27 / 119 au niveau 1 : You Are My Sunshine, Whiskey
+   in the Jar...). L'anacrouse n'est calée que pour la toute 1re mesure (`k === 0`).
+2. **Mode attente : une note juste jouée plus de 0,6 temps avant la tête de lecture est refusée** (`Player.input`,
+   `n.on - this.t <= 0.6`), flash rouge, puis réattendue. Le moteur avance au tempo réglé entre deux notes : on ne
+   peut pas jouer plus vite que lui. Gamme de Do à 80 % (64 à la noire) jouée à 120 : refus dès la 3e note. Attendu :
+   la bonne note suivante fait sauter le moteur jusqu'à elle (l'élève mène).
+3. **Meilleur score sans rapport avec le morceau** (`Player.end`) : enregistré quels que soient le passage, la
+   main, le tempo. Une note de la mesure 16 du Menuet (1 / 64) = « 100 % » sur l'accueil ; une gamme compte comme
+   réussie avec une mesure, main droite, à 50 %.
+4. **Temps joué compté pendant qu'on ne joue pas** (`frame` : `P.running` reste vrai pendant une attente) : un
+   morceau laissé ouvert en mode attente remplit l'anneau des 20 min et la série. Le Wake Lock n'est jamais
+   relâché non plus.
+5. **XSS par le titre d'un fichier importé** : `showResult` met `P.pc.title` dans `innerHTML` sans `esc`
+   (exécuté en test avec un `<img onerror>`). Les titres du catalogue viennent d'utilisateurs MuseScore, et
+   l'origine kkjsf.github.io est partagée avec les autres applis. Partout ailleurs le titre est échappé.
+6. **Mesures composées traitées comme des mesures simples** : un 6/8 a 3 clics à la noire, un décompte de 3, et
+   ses 6 croches sous une seule ligature (`engrave` : `win` ne regarde que `num`). 12,9 % de l'échantillon
+   (6/8, 9/8, 12/8), plus les 3/8.
+7. **Deux voix dans une main : toutes les notes d'une attaque prennent la figure la plus longue** (`engrave`,
+   `u.dur = Math.max`) : une ronde tenue sous quatre noires donne « ronde, noire, noire, noire ». 35 % de
+   l'échantillon a plusieurs voix par portée.
+8. **Geste retour d'Android** : aucun `history.pushState` / `popstate` (lu dans le code), le retour ferme
+   l'appli en plein morceau (chess-analyst a réglé ça en v290).
+9. **D.C., D.S., coda, Fine ignorés sans avertissement** (connu, mais muet) : 7,4 % de l'échantillon.
+
+**Doigtés calculés** : 20 motifs d'école passés dans `autoFinger`, 7 conformes. Écarts nets : Frère Jacques
+(quitte la position de cinq doigts, le même motif Mi-Fa-Sol sort en 2-3-4 puis 1-2-4), cadence I-IV-V7-I (Do-Mi-Sol
+en 1-2-4 MD et 4-2-1 MG au lieu de 1-3-5 / 5-3-1 : le 5 « même doigt, autre note » coûte 2, le hors-modèle 1,2),
+basse d'Alberti MG 3-1-2-1 (au lieu de 5-1-3-1), arpège de Do MD sur deux octaves (1-2-4 puis 1-2-3), gamme
+chromatique (1-2-3-4-1-2-3...), La mineur harmonique (passage après le 4). Cause commune : beaucoup de doigtés à
+coût nul, départagés sans notion de position. Pistes : coût « écart de doigts = écart de degrés » (rester en
+position de cinq doigts), reconnaissance des motifs d'école avant le calcul (gammes, arpèges, accords parfaits,
+Alberti, chromatique). Et un doigté calculé s'affiche comme un doigté écrit : les distinguer à l'écran.
+
+**Ergonomie (mesuré en 800 x 360)**
+- Accueil : carte Répertoire de 258 x 163 px pour 444 px de contenu ; 3 pièces sur 5 visibles, « Catalogue » et
+  « Importer » à 367 px, sous deux écrans de défilement dans la carte.
+- Barre des mesures : 2,8 px par mesure sur les Valses op. 69 (177 mesures), plus aucun numéro ; 15 % de
+  l'échantillon dépasse 100 mesures, 7 % 200.
+- Catalogue : toucher une ligne ajoute tout de suite le morceau à « Mes fichiers » (localStorage). 20 Ko en
+  moyenne, 913 Ko au pire : environ 260 morceaux moyens dans 5 Mo, après quoi réglages, scores et temps joué
+  cessent aussi de s'enregistrer (`LS.set` échoue en silence). Piste : imports dans IndexedDB, aperçu avant ajout.
+- Tempo : un seul bouton qui tourne de 50 à 100 %, rien au-dessus de 100 %.
+- Sous 740 px de large, ⟲ et ⚙ sortent de la barre sans indice (667 px : 73 px cachés).
+- Piano débranché en cours de jeu : aucun signal dans l'écran de jeu (`midiChanged` ne touche que l'accueil).
+- « Reprendre » ne retient ni la mesure ni le passage bouclé ; plein écran seulement par ⚙ (manifest en
+  `standalone`, orientation `any`).
+
+**Petits** : MIDI, la dernière mesure (méta 0x58) l'emporte alors que le 1er tempo est gardé, sans avertissement ;
+rythme du mode tempo mesuré sur l'horloge des images (jusqu'à 16 ms de flou), pas sur l'horodatage MIDI ; aide du
+clavier d'ordinateur écrite en QWERTY (sur AZERTY : Q Z S E D...) ; la case « Boucler » des réglages ne met pas à
+jour la pastille ; partition sans silences, liaisons, triolets (24 %), changements de clé (22 %) ni d'armure (7 %) ;
+carte Doigtés limitée à 4 gammes sur une octave.
 
 ### v13 (2026-11-10) : doigtés calculés, main serrée et accords
 
