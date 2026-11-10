@@ -330,7 +330,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '12', APP_DATE = '10 novembre 2026';
+const APP_VERSION = '13', APP_DATE = '10 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -477,6 +477,9 @@ function build(pc) {
    La main gauche est traitée comme une main droite en miroir (hauteur q = -midi) : mêmes règles, pouce du côté aigu. */
 // écart confortable / possible en demi-tons entre deux doigts, du grave (premier doigt) vers l'aigu
 const SPAN = { 12: [5, 8], 13: [7, 10], 14: [9, 11], 15: [10, 12], 23: [3, 5], 24: [5, 7], 25: [7, 9], 34: [2, 4], 35: [4, 6], 45: [2, 4] };
+// main serrée (plus de doigts que de demi-tons) : avec le pouce elle se replie sans peine ;
+// sans lui (Ré au 4 puis Do♯ au 2) elle doit se recaler, un demi-changement de position
+const squeeze = (lo, hi, D) => Math.max(0, hi - lo - D) * (lo === 1 ? 0.6 : 3);
 const CROSS = { 2: [4.5, 2], 3: [3, 4], 4: [3.5, 5] }; // passage du pouce sous 2/3/4 (ou 2/3/4 par-dessus) : coût, écart au-delà duquel il coûte cher
 // coût d'aller de la note a (doigt fa) à la note b (doigt fb) ; kind 1 = la main se déplace (changement de position)
 function fingStep(a, fa, b, fb) {
@@ -486,7 +489,7 @@ function fingStep(a, fa, b, fb) {
   const lo = d > 0 ? fa : fb, hi = d > 0 ? fb : fa; // doigt sur la note grave, doigt sur la note aiguë
   if (lo < hi) {
     const [cm, rm] = SPAN[lo * 10 + hi];
-    let c = Math.max(0, hi - lo - D) * 0.6;
+    let c = squeeze(lo, hi, D);
     if (D > rm) return [c + 6 + (D - rm) * 0.5, 1];
     return [c + Math.max(0, D - cm) * 1.5, 0];
   }
@@ -514,7 +517,11 @@ function fingCands(ns) {
   const rec = (start, acc) => {
     if (acc.length === k) {
       let cost = acc.reduce((s, f, i) => s + keyCost(f, ns[i].black), 0);
-      for (let i = 1; i < k; i++) { const D = ns[i].q - ns[i - 1].q, [cm, rm] = SPAN[acc[i - 1] * 10 + acc[i]]; cost += D > rm ? 30 : Math.max(0, D - cm) * 1.5 + Math.max(0, acc[i] - acc[i - 1] - D) * 0.6; }
+      // dans un accord, deux doigts voisins sans le pouce tiennent un ton sans effort, pas une tierce (La-Do♯-Mi en 1-2-4, pas 1-2-3)
+      for (let i = 1; i < k; i++) {
+        const D = ns[i].q - ns[i - 1].q, a = acc[i - 1], b = acc[i], [cm, rm] = SPAN[a * 10 + b], c = a > 1 && b === a + 1 ? Math.min(cm, 2) : cm;
+        cost += D > rm ? 30 : Math.max(0, D - c) * 1.5 + squeeze(a, b, D);
+      }
       if (k > 1 && acc.join() !== tpl) cost += 1.2;
       out.push({ f: acc.slice(), cost }); return;
     }
@@ -529,8 +536,12 @@ function fingTrans(A, ca, B, cb) {
   const a = A.ns.length - 1, b = B.ns.length - 1, slow = B.on - A.end >= 0.25 ? 0.5 : 1;
   if ((a || b) && a === b && A.ns.every((n, k) => n.q === B.ns[k].q) && ca.f.join() !== cb.f.join()) return [4, 1]; // accord répété : mêmes doigts
   const x = fingStep(A.ns[0], ca.f[0], B.ns[0], cb.f[0]), y = a || b ? fingStep(A.ns[a], ca.f[a], B.ns[b], cb.f[b]) : x;
-  // accord : si une extrémité reste en place, l'autre s'écarte ou se resserre sans que la main change de position
-  if ((a || b) && (!x[0] && !x[1] || !y[0] && !y[1])) return [Math.min(2, x[0] + y[0]), 0];
+  // accord : si une extrémité reste en place (même note, même doigt), l'autre s'écarte ou se resserre sans que la main change
+  // de position ; si elle se place seulement sans effort, l'autre peut encore glisser d'un ton au plus, mais un même doigt qui
+  // saute une tierce (Sol au 5 puis Mi au 5) déplace bien la main
+  const stay = (i, j) => A.ns[i].q === B.ns[j].q && ca.f[i] === cb.f[j];
+  const soft = (s, i, j) => !s[1] || ca.f[i] === cb.f[j] && Math.abs(A.ns[i].q - B.ns[j].q) <= 2;
+  if ((a || b) && (stay(0, 0) || stay(a, b) || !x[0] && !x[1] && soft(y, a, b) || !y[0] && !y[1] && soft(x, 0, 0))) return [Math.min(2, x[0] + y[0]), 0];
   const kind = Math.max(x[1], y[1]);
   return [(x[0] + y[0]) / 2 * (kind ? slow : 1), kind];
 }

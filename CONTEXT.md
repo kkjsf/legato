@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v13 prête en local, pas encore commitée (2026-11-10)** : doigtés calculés revus (Sarabande mes. 2 et 10 en 1-2-4, mes. 14-15 dans une seule position) ; 120 / 120 en local en 800 x 360, Sarabande perso comprise ; **v12 vérifiée en ligne (2026-11-10, `66818e1`** : 5 niveaux, tri ; worker `v=12`, 117 / 117 sur kkjsf.github.io en 800 x 360) ; **v11 vérifiée en ligne (2026-11-10, `7c85238`** : catalogue PDMX ; worker `v=11`, cache `legato-v11`, 116 / 116 sur kkjsf.github.io en 800 x 360) ; **v10 vérifiée en ligne (2026-11-10, `bffd6d1`** : import MusicXML, lecture ; worker `v=10`, cache `legato-v10`, 110 / 110 sur kkjsf.github.io en 800 x 360, Sarabande perso absente) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -24,6 +24,41 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 `maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Essayé sur le vrai
 P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v13 (2026-11-10) : doigtés calculés, main serrée et accords
+
+Simon a demandé la méthode de calcul du doigté, puis de corriger les deux passages de la Sarabande que la
+relecture jugeait jouables mais peu naturels. Trois règles changées dans le calcul (`SPAN`, `squeeze`,
+`fingCands`, `fingTrans` dans `index.html`) :
+- **Main serrée** (`squeeze`) : plus de doigts que de demi-tons entre deux notes. Avec le pouce, toujours 0,6 par
+  cran ; sans lui, **3** (un demi-changement de position). Avant, Ré au 4 puis Do♯ au 2 ne coûtait que 0,6.
+- **Accord : deux doigts voisins sans le pouce tiennent un ton sans effort, pas une tierce** (2-3 sur une tierce
+  mineure : +1,5, comme le « relâché » de Parncutt). La-Do♯-Mi passe de 1-2-3 à 1-2-4.
+- **Accord qui garde une extrémité** : la main ne bouge pas si une extrémité reste en place (même note, même
+  doigt). Si elle se place seulement sans effort, l'autre peut encore s'écarter, se resserrer ou glisser d'un ton
+  au plus avec le même doigt. Avant, toute extrémité « sans coût » plafonnait le passage à 2, même un 5 qui
+  saute une tierce (Sol au 5 puis Mi au 5) ou un croisement à 20. La version stricte (même note seulement) a été
+  essayée puis écartée : elle cassait les tierces doublées (pouce qui glisse d'un demi-ton).
+
+Effet sur la Sarabande, main droite seulement : mes. 2 et 10 La-Do♯-Mi en **1-2-4** ; mes. 4 et 12 Do-Mi-Sol en
+1-2-4 puis Fa♯-La en 3-5 (la main ne bouge plus avant la mes. 5) ; mes. 14-15 **La 1, Ré 3, Do♯ 2 | Ré 3, Mi 4,
+Fa 5, Mi 4, Ré 3**, une seule position (avant La 2, Ré 4, Do♯ 2, la main se recalait). Main gauche inchangée.
+
+Vérification :
+- Gammes inchangées (22 / 24 en une octave, 17 / 24 en deux) ; accord avec les doigtés écrits du répertoire
+  inchangé sauf Menuet en sol mineur 71 -> 70 % (MG mes. 5-6 en 5-4-3 au lieu de 2-3, l'écrit met le pouce)
+  et Mélodie 57 -> 58 %.
+- **Banc d'essai plus large, sur les doigtés écrits du catalogue PDMX** : 82 pièces avec au moins 20 doigts
+  écrits et 2 500 notes au plus, 12 584 doigts écrits ; on retire les doigts écrits, on calcule, on compare.
+  **56,10 % -> 56,52 %** (30 pièces mieux, 22 moins bien, 30 pareil). Plus fort recul : études de Chopin et
+  Album pour enfants de Tchaïkovski (un motif MG Do-Mi♭ en 3-2 que l'éditeur met sur une tierce mineure).
+  Recette : page servie en local, `zipIndex` / `zipEntry` sur `perso/legato-catalogue.zip`, `unzipMxl` +
+  `parseMusicXml`, `autoFinger` sur des notes sans `fx`, et l'ancien calcul extrait par `new Function` d'une
+  copie de l'ancien `index.html` posée dans `perso/` (ignoré par git, à effacer après).
+- Tests : 120 (2 nouveaux : Sarabande mes. 1-3 et 14-16 recopiées dans le test, donc vérifiées aussi en ligne ;
+  le contrôle du fichier perso vérifie en plus mes. 2 = 1-2-4 et le La de la mes. 14 au pouce). En 800 x 360 :
+  120 / 120. Hors de cette taille ou volet masqué, les tests d'affichage (barre, partition sans clavier,
+  métronome en temps réel) échouent : ce n'est pas le calcul.
 
 ### v12 (2026-11-10) : catalogue en 5 niveaux, tri
 

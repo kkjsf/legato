@@ -215,6 +215,16 @@ export async function run() {
       data: [[60, 0, 1, 1], [64, 0, 1, 1], [67, 0, 1, 1], [60, 1, 1, 1], [72, 1, 1, 1], [48, 0, 1, 0], [52, 0, 1, 0], [55, 0, 1, 0]] });
     const cf = (h, on) => chords.notes.filter(n => n.hand === h && n.on === on).sort((a, b) => a.midi - b.midi).map(n => n.f).join('');
     ok('doigtés calculés : accords Do-Mi-Sol MD 135, MG 531, octave 15', cf('R', 0) === '135' && cf('L', 0) === '531' && cf('R', 1) === '15', `${cf('R', 0)} · ${cf('L', 0)} · ${cf('R', 1)}`);
+    // Sarabande mes. 1-3 et 14-16 (MD), recopiées ici pour que le contrôle tourne aussi sans le fichier perso
+    const sara = (id, data) => build({ id, title: '', sub: '', bpm: 80, num: 6, hands: 'B', pct: 100, src: '', key: -1, data });
+    const s1 = sara('test-sara1', [[57, 0, 2, 1], [62, 0, 2, 1], [65, 0, 2, 1], [57, 2, 2, 1], [62, 2, 2, 1], [65, 2, 2, 1], [64, 5, 1, 1], [67, 5, 1, 1],
+      [57, 6, 2, 1], [61, 6, 2, 1], [64, 6, 2, 1], [57, 8, 2, 1], [61, 8, 2, 1], [64, 8, 2, 1], [60, 12, 2, 1], [65, 12, 2, 1], [69, 12, 2, 1]]);
+    const s1f = on => s1.notes.filter(n => n.on === on).sort((a, b) => a.midi - b.midi).map(n => n.f).join('');
+    ok('doigtés calculés : La-Do♯-Mi en 1-2-4 après Mi-Sol en 3-5 (Sarabande mes. 2), plus 1-2-3', s1f(6) === '124' && s1f(8) === '124', `${s1f(0)} · ${s1f(5)} · ${s1f(6)} · ${s1f(12)}`);
+    const s14 = sara('test-sara14', [[60, 0, 3, 1], [65, 0, 3, 1], [69, 0, 3, 1], [69, 3, 1, 1], [74, 4, 1, 1], [73, 5, 1, 1], [74, 6, 1, 1], [76, 7, 1, 1], [77, 8, 2, 1],
+      [76, 10, 1, 1], [74, 11, 1, 1], [65, 12, 6, 1], [69, 12, 6, 1], [74, 12, 6, 1]]);
+    const s14f = s14.notes.filter(n => n.on >= 3 && n.on < 12).map(n => n.f).join('');
+    ok('doigtés calculés : La Ré Do♯ | Ré Mi Fa Mi Ré dans une seule position, 1-3-2 | 3-4-5-4-3 (Sarabande mes. 14-15)', s14f === '13234543', s14f);
     const schu = PIECES.find(x => x.id === 'schumann-melodie');
     for (const [p, src] of [[pc, null], [asImport(menuet, 'test-menuet'), menuet], [asImport(schu, 'test-schumann'), schu]]) {
       build(p);
@@ -224,7 +234,12 @@ export async function run() {
     }
     try {
       const r0 = await fetch('perso/Sarabande_Haendel_HWV437_8notes.mid');
-      if (r0.ok) { const sb = build(fromMidi('Sarabande.mid', parseMidi(await r0.arrayBuffer()))); ok('import Sarabande (fichier perso) : doigté 1 à 5 sur ses ' + sb.notes.length + ' notes', sb.notes.every(n => n.f >= 1 && n.f <= 5)); }
+      if (r0.ok) {
+        const sb = build(fromMidi('Sarabande.mid', parseMidi(await r0.arrayBuffer())));
+        const sf = on => sb.notes.filter(n => n.hand === 'R' && n.on === on).sort((a, b) => a.midi - b.midi).map(n => n.f).join('');
+        ok('import Sarabande (fichier perso) : doigté 1 à 5 sur ses ' + sb.notes.length + ' notes, mes. 2 en 1-2-4, mes. 14 le La au pouce', sb.notes.every(n => n.f >= 1 && n.f <= 5) && sf(6) === '124' && sf(81) === '1',
+          `mes. 2 ${sf(6)} · mes. 14 La ${sf(81)}`);
+      }
     } catch (e) { /* fichier perso absent en ligne */ }
 
     // ---------- 7 quater. correction d'un doigté par appui long ----------
