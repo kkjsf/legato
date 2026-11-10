@@ -11,7 +11,7 @@ Matériel cible (confirmé par Simon le 2026-11-06) : **Yamaha P-145** branché 
 
 ## Statut
 
-**v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
+**v10 en ligne (2026-11-10)** (import MusicXML, lecture) ; **v9 vérifiée en ligne (2026-11-09, `2ad76b7`** : worker `v=9`, cache `legato-v9`, 88 / 89 sur kkjsf.github.io, Sarabande perso absente, seul échec le métronome en temps réel bridé par le volet) ; v8 en ligne ; v7 vérifiée en ligne (`36971fe`) ; v6 vérifiée en ligne (`78240ec` : worker `v=6`, cache `legato-v6`, 62 / 62 sur kkjsf.github.io, la Sarabande perso n'y étant pas), v2 = la première vraie version : https://kkjsf.github.io/legato/, dépôt
 public `git@github.com:kkjsf/legato.git`, Pages sur `main`, racine. Historique : `7af8a49`
 prototype v1, `a0bfb8c` palette de Harmonic Atlas (or = main droite, violet = main gauche, crème
 des touches, titre en Playfair Display), puis `72b5781` v2 (partition qui défile, métronome, démo). Le premier déploiement Pages
@@ -21,9 +21,53 @@ même panne de déploiement (délai dépassé, puis relance restée « Queued »
 vide (`bd60920`). **v3 vérifiée en ligne** : worker `v=3`, caches `legato-v3` et `legato-fonts`, 38 / 38.
 Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vérifié en ligne le 2026-11-06** : v2 servie, worker `sw.js?v=2`, cache
 `legato-v2`, `tools/test_engine.js` lancé sur kkjsf.github.io : 38 / 38, partition affichée en 800 x 360.
-`maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Pas encore essayé avec le vrai
-P-145.** Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
+`maquettes.html` est exclu par `.gitignore` (ne pas le publier). **Essayé sur le vrai
+P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
+
+### v10 (2026-11-10) : import MusicXML et lecture des notes
+
+Demande de Simon : « ok pour le music xml et lecture clé de fa », « et déploie ».
+
+- **Import MusicXML** (`importFile` reconnaît le contenu : `MThd` = MIDI, `PK` = .mxl, sinon texte
+  `score-partwise`) : le bouton « Importer MIDI ou MusicXML » n'a plus de filtre `accept` (Android grise
+  les extensions qu'il ne connaît pas). `.mxl` = zip lu à la main (répertoire central, `META-INF/container.xml`,
+  `DecompressionStream('deflate-raw')`). `parseMusicXml` : `divisions`, `backup` / `forward` (voix),
+  accords, notes d'agrément ignorées, **liaisons fondues** en une note (même portée, même hauteur, qui se
+  suivent), **doigtés écrits** (`notations/technical/fingering`), armure, mesure, tempo (`sound tempo`
+  sinon `metronome`), titre (`work-title`, `movement-title`, sinon 1er `credit-words`), compositeur.
+  **Reprises dépliées** (barres de reprise, 1re / 2e fois ; D.C., D.S. et coda ignorés), **anacrouse** calée
+  sur la fin de la 1re mesure. Mains : une partie de piano à deux portées est seule gardée (chant et autres
+  parties ignorés, dit dans `warn`), portée 1 = MD, portée 2 = MG ; sinon la règle du MIDI. Clé de sol en
+  portée 2 = `clefL: 'G'`. Un changement de mesure est signalé (les barres suivent la 1re mesure).
+  Données `data` : `[midi, on, dur, main, doigt écrit]`.
+- **Doigtés** : `build` met le doigt écrit en `fx` ; `autoFinger` ne garde, pour un groupe qui en a, que
+  les solutions qui le respectent, et calcule le reste autour (positions, passages du pouce, `ch`).
+- Essayé sur le corpus de test d'OpenSheetMusicDisplay (lu depuis GitHub, rien enregistré) : sonatines
+  de Clementi op. 36 n° 1 et 3, Prélude en do BWV 846 (35 mes.), Cavalier sauvage de Schumann (.mxl,
+  6/8, anacrouse d'une croche), Entertainer, An Chloe (piano gardé, voix ignorée), 17 fichiers de
+  doigtés : **tous les doigts écrits gardés** (13 / 13, 27 / 27...), dessin sans erreur.
+- **Lecture** (écran 5 des maquettes ; carte « Lecture » à l'accueil, à la place de « Mes fichiers »,
+  dont la liste et le bouton d'import passent dans la carte Répertoire) : vue `v-read` en SVG. Clé de fa
+  ou clé de sol, **6 niveaux** par place sur la portée (`RD_LVLS`, `rel` = degrés au-dessus de la 1re
+  ligne) : repères (fa : les deux Do, Sol 1re ligne, Fa 4e ligne ; sol : Do central, Sol 2e ligne, Do
+  3e interligne, Sol au-dessus), lignes, interlignes (avec dessous / dessus), toute la portée, deux
+  lignes supplémentaires, dièses et bémols. Rondes sur papier ivoire, note en cours entourée, les deux
+  suivantes en gris, les deux d'avant avec ✓ / ✗. Il faut la **hauteur exacte** : une fausse note est
+  notée ratée, la bonne touche s'allume en or et le nom s'affiche, on attend la bonne ; une octave à
+  côté le dit (« bonne note, mauvaise octave »). Séries de 40 ; réussi = 90 % du premier coup et
+  2,5 s par note en moyenne, « Niveau suivant » proposé, ✓ dans la liste des niveaux (`legato-read-best`).
+- **Répétition espacée** : 10 derniers essais par note (`legato-read` = { clé : { h, t } }, clé =
+  clef + degré + altération, par place et non par hauteur). Tirage pondéré : jamais vue 2,5 ; sinon
+  1 + 3 x taux d'erreur, + 1 au-delà de 2,5 s (médiane), au plus 4 ; jamais deux fois la même d'affilée.
+  « Tes notes à revoir » : au moins 3 essais, moins de 90 % ou plus de 2 s ; petit clavier rougi selon
+  les erreurs. Le temps de lecture compte dans le temps joué du jour. Option « Noms » sous les notes.
+- Tests : 111 (16 import MusicXML et lecture : anacrouse, liaison, accord, reprise 1re / 2e fois,
+  doigtés écrits gardés, .mxl, format refusé, morceau joué en entier ; niveaux, places, fausse note,
+  octave, tirage pondéré, fin de série, niveau suivant, clé de sol, carte d'accueil).
+- **Catalogue PDMX** (question de Simon) : pas d'accès fichier par fichier (Zenodo ne sert les
+  250 000 MXL que dans `mxl.tar.gz`, 1,9 Go) ; piste : un catalogue choisi (piano, sans conflit de
+  licence) publié à part, que l'appli parcourt et importe. Pas commencé.
 
 ### v9 (2026-11-09) : se déplacer dans le morceau
 

@@ -57,6 +57,9 @@ h2{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mu
 .prow i{grid-column:1/-1;height:5px;border-radius:3px;background:var(--chip);overflow:hidden;display:block}
 .prow i b{display:block;height:100%;background:var(--rh)}
 .prow .x{background:none;border:0;color:var(--muted);font-size:14px;padding:0 2px}
+.hcard h4.sub{margin:6px 0 0;font-size:12.5px;font-weight:600;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hcard h4.sub span{font-size:11px;font-weight:500;color:var(--muted)}
+#h-read svg{width:100%;max-height:clamp(44px,14vh,84px);display:block}
 .hset{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;align-items:center;font-size:12.5px}
 .hset>span{color:var(--muted)}
 .hset select{padding:3px 6px;font-size:12.5px;min-width:0}
@@ -146,6 +149,22 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 .bars{display:flex;gap:4px;align-items:flex-end;height:70px}
 .bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;font-size:10px;color:var(--muted);min-width:0;height:100%}
 .bars i{display:block;width:100%;border-radius:3px 3px 0 0}
+/* lecture */
+#v-read{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--bg)}
+#v-read select{padding:4px 6px;font-size:12.5px;flex:none}
+.rd{flex:1;min-height:0;position:relative;display:grid;grid-template-columns:1fr 230px;grid-template-rows:minmax(0,1fr) 76px;gap:8px;padding:8px max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left))}
+.rd-main{background:var(--ivory);border-radius:12px;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.rd-main svg{flex:1;min-height:0;width:100%;display:block}
+.rd-fb{margin:0;padding:2px 12px 6px;font-size:13px;color:#4a443b;min-height:24px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-fb b.ok{color:#1f8355}.rd-fb b.err{color:#bf3a31}
+.rd-side{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 10px;overflow:auto;font-size:12.5px;display:flex;flex-direction:column;gap:6px;min-height:0}
+.rd-side h4{margin:0;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.rd-side svg{width:100%;height:40px;display:block;flex:none}
+.wk{display:grid;gap:3px}.wk div{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:baseline}
+.wk span{color:var(--muted);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rd-keys{grid-column:1/-1;min-height:0;touch-action:none}
+.rd-keys svg{width:100%;height:100%;display:block}
+@media (max-width:640px){.rd{grid-template-columns:1fr}.rd-side{display:none}}
 .fpick{position:absolute;z-index:5;background:var(--panel);border:1px solid var(--rh);border-radius:14px;padding:8px 10px;display:grid;gap:7px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
 .fpick small{color:var(--muted);font-size:12px;white-space:nowrap}
 .fpick div{display:flex;gap:6px}
@@ -174,12 +193,14 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
     <section class="hcard hl"><h3>Doigtés <span id="h-scales-n"></span></h3>
       <div class="v"><button class="mkeys" type="button" id="h-mkeys"></button></div>
       <div class="hfoot"><div class="schips" id="g-scales"></div><span class="ft" id="h-next"></span></div></section>
+    <section class="hcard" data-go="read" role="button" tabindex="0" style="cursor:pointer"><h3>Lecture <span id="h-read-n"></span></h3>
+      <div class="v" id="h-read"></div><div class="ft" id="h-read-ft"></div></section>
     <section class="hcard"><h3>Répertoire <span id="h-pieces-n"></span></h3>
-      <div class="prog" id="g-pieces"></div></section>
-    <section class="hcard"><h3>Mes fichiers <span>restent sur l'appareil</span></h3>
+      <div class="prog" id="g-pieces"></div>
+      <h4 class="sub">Mes fichiers <span>restent sur l'appareil</span></h4>
       <div class="prog" id="g-imports"></div>
-      <div class="row" style="gap:8px"><label class="btn" for="f-imp" style="cursor:pointer;padding:6px 11px;font-size:12.5px">Importer un MIDI</label><span class="ft" id="imp-msg"></span></div>
-      <input type="file" id="f-imp" accept=".mid,.midi,audio/midi,audio/x-midi" hidden></section>
+      <div class="row" style="gap:8px"><label class="btn" for="f-imp" style="cursor:pointer;padding:6px 11px;font-size:12.5px">Importer MIDI ou MusicXML</label><span class="ft" id="imp-msg"></span></div>
+      <input type="file" id="f-imp" hidden></section>
     <section class="hcard"><h3>Réglages</h3>
       <div class="hset">
         <span>Autre main</span><select id="s-acc" aria-label="L'autre main est jouée par"><option value="piano">au piano</option><option value="phone">au téléphone</option><option value="off">muette</option></select>
@@ -210,6 +231,24 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
         <li>La pastille passe au vert. Sans piano, le clavier à l'écran et celui de l'ordinateur marchent aussi (rangée A S D F… = Do Ré Mi Fa…).</li>
       </ol></div>
     <div class="box" style="grid-column:1/-1"><h3>Messages reçus</h3><pre class="log" id="d-log"></pre><canvas id="dkeys"></canvas></div>
+  </div>
+</div>
+
+<div id="v-read" hidden>
+  <div class="tb">
+    <button class="ib" type="button" data-go="home" aria-label="Retour">‹</button>
+    <div class="tt"><b id="r-title">Lecture</b><small id="r-sub"></small></div>
+    <div class="seg" id="r-clef"><button type="button" data-c="F">Clé de fa</button><button type="button" data-c="G">Clé de sol</button></div>
+    <select id="r-lvl" aria-label="Niveau"></select>
+    <button class="chip" type="button" id="r-names" title="Écrire le nom sous chaque note">Noms</button>
+    <span class="chip" id="r-count"></span><span class="chip" id="r-time"></span>
+  </div>
+  <div class="rd">
+    <div class="rd-main"><svg id="r-staff" viewBox="0 0 520 220" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Portée"></svg><p class="rd-fb" id="r-fb" aria-live="polite"></p></div>
+    <aside class="rd-side"><h4>Tes notes à revoir</h4><div id="r-heat"></div><div class="wk" id="r-weak"></div>
+      <p class="txt" style="margin:0;font-size:12px">Les notes ratées ou lentes reviennent plus souvent, jusqu'à 90 % de réussite. Les notes se nomment par leur place sur la portée.</p></aside>
+    <div class="rd-keys" id="r-keys"></div>
+    <div class="res" id="r-res" hidden><div class="box" id="r-resbox"></div></div>
   </div>
 </div>
 
@@ -267,7 +306,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '9', APP_DATE = '9 novembre 2026';
+const APP_VERSION = '10', APP_DATE = '10 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -404,7 +443,7 @@ function build(pc) {
   if (pc.notes) return pc;
   if (pc.key === undefined) pc.key = guessKey(pc.data);
   pc.notes = pc.rh ? voice(pc.rh, 'R').concat(voice(pc.lh, 'L')).sort((a, b) => a.on - b.on)
-    : pc.data.map(([midi, on, dur, h]) => Object.assign(spell(midi, pc.key), { midi, hand: h ? 'R' : 'L', on, dur, f: 0, ch: false }));
+    : pc.data.map(([midi, on, dur, h, fx]) => Object.assign(spell(midi, pc.key), { midi, hand: h ? 'R' : 'L', on, dur, f: 0, fx: fx || 0, ch: false }));
   if (!pc.rh) autoFinger(pc.notes);
   pc.measures = Math.ceil(Math.max(...pc.notes.map(n => n.on + n.dur)) / pc.num - 1e-6);
   return pc;
@@ -479,7 +518,15 @@ function autoFinger(notes) {
       if (e && Math.abs(n.on - e.on) < 0.02) e.ns.push(x); else evs.push({ on: n.on, ns: [x] });
     }
     if (!evs.length) continue;
-    for (const e of evs) { e.ns.sort((a, b) => a.q - b.q); e.end = Math.max(...e.ns.map(x => x.n.on + x.n.dur)); e.cands = fingCands(e.ns); }
+    for (const e of evs) {
+      e.ns.sort((a, b) => a.q - b.q); e.end = Math.max(...e.ns.map(x => x.n.on + x.n.dur)); e.cands = fingCands(e.ns);
+      // doigtés écrits dans le fichier (MusicXML) : seules les solutions qui les respectent, le calcul complète autour
+      const fx = e.ns.map(x => x.n.fx || 0);
+      if (fx.some(Boolean)) {
+        const keep = e.cands.filter(c => c.f.every((f, k) => !fx[k] || f === fx[k]));
+        e.cands = keep.length ? keep : [{ f: fx.map((f, k) => f || Math.min(5, k + 1)), cost: 0 }];
+      }
+    }
     evs.forEach((e, i) => { // broderie : la ligne repart aussitôt dans l'autre sens, sans venir d'un trait par degrés conjoints
       const p = evs[i - 1], n = evs[i + 1], pp = evs[i - 2]; if (!p || !n || e.ns.length > 1) return;
       const d1 = e.ns[0].q - p.ns[0].q, run = pp && Math.abs(p.ns[0].q - pp.ns[0].q) <= 2 && Math.sign(p.ns[0].q - pp.ns[0].q) === Math.sign(d1);
@@ -630,6 +677,149 @@ function fromMidi(name, m) {
     key: m.key === null ? guessKey(data) : m.key, hands: 'B', pct: 70, src: 'Fichier importé, gardé sur cet appareil.', data };
 }
 
+/* ---------- import MusicXML (.musicxml, .xml, .mxl) : notes, doigtés écrits, armure, mesure, tempo, liaisons, reprises ---------- */
+const decodeText = b => new TextDecoder(b[0] === 0xFF && b[1] === 0xFE ? 'utf-16le' : b[0] === 0xFE && b[1] === 0xFF ? 'utf-16be' : 'utf-8').decode(b);
+// .mxl = zip : répertoire central, puis META-INF/container.xml désigne la partition
+async function unzipMxl(buf) {
+  const d = new DataView(buf), u8 = new Uint8Array(buf);
+  let e = u8.length - 22; while (e >= 0 && d.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('Fichier .mxl illisible.');
+  const files = {}; let p = d.getUint32(e + 16, true);
+  for (let i = d.getUint16(e + 10, true); i > 0 && d.getUint32(p, true) === 0x02014b50; i--) {
+    const nl = d.getUint16(p + 28, true);
+    files[new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl))] = { meth: d.getUint16(p + 10, true), size: d.getUint32(p + 20, true), off: d.getUint32(p + 42, true) };
+    p += 46 + nl + d.getUint16(p + 30, true) + d.getUint16(p + 32, true);
+  }
+  const get = async name => {
+    const f = files[name]; if (!f) return null;
+    const s = f.off + 30 + d.getUint16(f.off + 26, true) + d.getUint16(f.off + 28, true), raw = u8.slice(s, s + f.size);
+    if (f.meth === 0) return decodeText(raw);
+    if (f.meth !== 8 || !window.DecompressionStream) throw new Error('Compression .mxl non gérée par ce navigateur.');
+    return decodeText(new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
+  };
+  const cont = await get('META-INF/container.xml');
+  const root = (cont && (cont.match(/full-path="([^"]+)"/) || [])[1]) || Object.keys(files).find(k => /\.(musicxml|xml)$/i.test(k) && !k.startsWith('META-INF'));
+  const xml = root && await get(root);
+  if (!xml) throw new Error('Pas de partition dans ce .mxl.');
+  return xml;
+}
+const XSTEP = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function parseMusicXml(text, name) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml'), root = doc.documentElement;
+  if (doc.getElementsByTagName('parsererror').length) throw new Error("Ce fichier MusicXML est illisible.");
+  if (root.nodeName === 'score-timewise') throw new Error('MusicXML « timewise » non géré : exporte la partition en « partwise ».');
+  if (root.nodeName !== 'score-partwise') throw new Error("Ce n'est pas une partition MusicXML.");
+  const kid = (el, t) => el && [...el.children].find(c => c.nodeName === t), txt = (el, t) => { const c = kid(el, t); return c ? c.textContent.trim() : ''; };
+  let parts = [...root.children].filter(c => c.nodeName === 'part');
+  if (!parts.length) throw new Error('Aucune partie dans ce fichier.');
+  // une partie de piano à deux portées : on ne garde qu'elle (chant, autres instruments ignorés)
+  const staves = pt => Math.max(1, ...[...pt.getElementsByTagName('staves')].map(s => +s.textContent || 1));
+  const piano = parts.find(pt => staves(pt) >= 2), dropped = piano ? parts.length - 1 : 0;
+  if (piano) parts = [piano];
+  let key = null, beats = 0, btype = 0, bpm = 0, timeChanged = false, clef2 = '';
+  // 1. chaque mesure de chaque partie : notes à leur place dans la mesure, en noires
+  const PM = parts.map((part, pi) => {
+    let div = 1, inEnd = null;
+    return [...part.children].filter(c => c.nodeName === 'measure').map(m => {
+      let cur = 0, len = 0, last = null; const notes = [], ms = { notes, fwd: false, back: 0, end: inEnd, implicit: m.getAttribute('implicit') === 'yes' };
+      for (const el of m.children) {
+        const t = el.nodeName;
+        if (t === 'attributes') {
+          const dv = +txt(el, 'divisions'); if (dv > 0) div = dv;
+          const k = kid(el, 'key'); if (k && key === null && kid(k, 'fifths')) key = Math.max(-7, Math.min(7, +txt(k, 'fifths') || 0));
+          const tm = kid(el, 'time');
+          if (tm && kid(tm, 'beats')) { const b = parseInt(txt(tm, 'beats')) || 4, bt = +txt(tm, 'beat-type') || 4; if (!beats) { beats = b; btype = bt; } else if (b * btype !== beats * bt) timeChanged = true; }
+          for (const c of el.children) if (c.nodeName === 'clef' && c.getAttribute('number') === '2' && !clef2) clef2 = txt(c, 'sign');
+        } else if (t === 'note') {
+          if (kid(el, 'grace') || kid(el, 'cue')) continue;
+          const chord = !!kid(el, 'chord'), dur = (+txt(el, 'duration') || 0) / div, on = chord && last ? last.on : cur;
+          if (!chord) { cur += dur; len = Math.max(len, cur); }
+          const ptc = kid(el, 'pitch');
+          if (!ptc) { if (!chord) last = { on }; continue; }
+          const midi = (+txt(ptc, 'octave') + 1) * 12 + XSTEP[txt(ptc, 'step')] + Math.round(+txt(ptc, 'alter') || 0);
+          const ties = [...el.children].filter(c => c.nodeName === 'tie').map(c => c.getAttribute('type'));
+          const fg = el.querySelector('notations technical fingering'), f = fg ? +(fg.textContent.match(/[1-5]/) || [0])[0] : 0;
+          last = { midi, on, dur, tr: pi + ':' + (+txt(el, 'staff') || 1), start: ties.includes('start'), stop: ties.includes('stop'), f };
+          if (midi >= 21 && midi <= 108) notes.push(last);
+        } else if (t === 'backup') cur -= (+txt(el, 'duration') || 0) / div;
+        else if (t === 'forward') { cur += (+txt(el, 'duration') || 0) / div; len = Math.max(len, cur); }
+        else if ((t === 'direction' || t === 'sound') && !bpm) {
+          const s = t === 'sound' ? el : el.querySelector('sound'), mt = el.querySelector('metronome');
+          if (s && +s.getAttribute('tempo')) bpm = +s.getAttribute('tempo');
+          else if (mt && +txt(mt, 'per-minute')) bpm = +txt(mt, 'per-minute') * ({ whole: 4, half: 2, quarter: 1, eighth: 0.5, '16th': 0.25 }[txt(mt, 'beat-unit')] || 1) * (kid(mt, 'beat-unit-dot') ? 1.5 : 1);
+        } else if (t === 'barline' && pi === 0) {
+          const r = kid(el, 'repeat'), en = kid(el, 'ending');
+          if (r && r.getAttribute('direction') === 'forward') ms.fwd = true;
+          if (r && r.getAttribute('direction') === 'backward') ms.back = +r.getAttribute('times') || 2;
+          if (en) {
+            const nums = (en.getAttribute('number') || '1').split(/[ ,]+/).map(Number).filter(Boolean), ty = en.getAttribute('type');
+            if (ty === 'start') { ms.end = nums; inEnd = nums; } else { ms.end = ms.end || inEnd || nums; inEnd = null; }
+          }
+        }
+      }
+      ms.len = len; return ms;
+    });
+  });
+  const M = PM[0].length;
+  if (!M) throw new Error('Aucune mesure dans ce fichier.');
+  if (!beats) { beats = 4; btype = 4; }
+  const num = beats * 4 / btype;
+  // 2. reprises dépliées (barres de reprise et 1re / 2e fois ; D.C., D.S. et coda ignorés)
+  const order = []; let start = 0, pass = 1, prevEnd = false;
+  for (let i = 0, guard = 0; i < M && guard++ < M * 6; ) {
+    const ms = PM[0][i];
+    if (ms.fwd && !ms.jumped) { start = i; pass = 1; }
+    ms.jumped = false;
+    if (!ms.end && prevEnd) { start = i; pass = 1; }
+    prevEnd = !!ms.end;
+    if (ms.end && !ms.end.includes(pass)) { i++; continue; }
+    order.push(i);
+    if (ms.back && pass < ms.back) { pass++; i = start; PM[0][i].jumped = true; prevEnd = false; continue; }
+    if (ms.back) { pass = 1; start = i + 1; }
+    i++;
+  }
+  // 3. mesures mises bout à bout ; une anacrouse est calée sur la fin de la 1re mesure
+  const raw = []; let off = 0;
+  order.forEach((mi, k) => {
+    const len0 = Math.max(...PM.map(p => (p[mi] || { len: 0 }).len));
+    const pick = k === 0 && len0 > 0 && len0 < num - 1e-6 && (PM[0][mi].implicit || mi === 0) ? num - len0 : 0;
+    for (const p of PM) for (const n of (p[mi] || { notes: [] }).notes) raw.push(Object.assign({}, n, { on: off + pick + n.on }));
+    off += Math.max(num, pick ? num : len0);
+  });
+  // 4. notes liées fondues en une seule (même portée, même hauteur, qui se suivent)
+  raw.sort((a, b) => a.on - b.on || a.midi - b.midi);
+  const open = {}, notes = [];
+  for (const n of raw) {
+    const k = n.tr + ':' + n.midi, o = open[k];
+    if (n.stop && o && Math.abs(o.on + o.dur - n.on) < 0.02) { o.dur += n.dur; if (!n.start) delete open[k]; continue; }
+    notes.push(n); if (n.start) open[k] = n; else delete open[k];
+  }
+  if (!notes.length) throw new Error('Aucune note dans ce fichier.');
+  // 5. mains : portée 1 = main droite, portée 2 = main gauche ; sinon comme un MIDI (piste la plus aiguë = MD)
+  const trs = [...new Set(notes.map(n => n.tr))], avg = tr => { const a = notes.filter(n => n.tr === tr); return a.reduce((s, n) => s + n.midi, 0) / a.length; };
+  const byPitch = trs.slice().sort((a, b) => avg(b) - avg(a));
+  const handOf = n => piano ? (n.tr.endsWith(':1') ? 1 : 0) : byPitch.length >= 2 ? (n.tr === byPitch[0] ? 1 : n.tr === byPitch[1] ? 0 : (n.midi >= 60 ? 1 : 0)) : (n.midi >= 60 ? 1 : 0);
+  const r3 = x => Math.round(x * 1000) / 1000;
+  const data = notes.map(n => [n.midi, r3(n.on), r3(Math.max(0.1, n.dur)), handOf(n), n.f || 0]);
+  const fing = data.filter(n => n[4]).length;
+  const ident = kid(root, 'identification'), comp = ident && [...ident.children].find(c => c.nodeName === 'creator' && c.getAttribute('type') === 'composer');
+  const credit = [...root.getElementsByTagName('credit-words')].map(c => c.textContent.trim()).find(Boolean);
+  const title = txt(kid(root, 'work'), 'work-title') || txt(root, 'movement-title') || credit || name.replace(/\.(musicxml|xml|mxl)$/i, '');
+  const notesTxt = [data.length + ' notes', fing ? fing + ' doigtés écrits' : 'doigtés calculés'];
+  const warn = [timeChanged && 'changement de mesure : barres de mesure approximatives', dropped && dropped + ' autre' + (dropped > 1 ? 's parties ignorées' : ' partie ignorée')].filter(Boolean);
+  return { id: 'imp-' + Date.now(), title: title.slice(0, 80), sub: (comp ? comp.textContent.trim().slice(0, 40) + ' · ' : '') + notesTxt.join(' · '), bpm: Math.round(bpm) || 80, num, tn: beats, td: btype,
+    key: key === null ? guessKey(data) : key, clefL: clef2 === 'G' ? 'G' : undefined, hands: 'B', pct: 70,
+    src: 'Fichier MusicXML importé, gardé sur cet appareil.' + (warn.length ? ' ' + warn.join(' ; ') + '.' : ''), data, warn };
+}
+async function importFile(f) {
+  const buf = await f.arrayBuffer(), b = new Uint8Array(buf.slice(0, 4));
+  if (b[0] === 0x4D && b[1] === 0x54 && b[2] === 0x68 && b[3] === 0x64) return fromMidi(f.name, parseMidi(buf));
+  if (b[0] === 0x50 && b[1] === 0x4B) return parseMusicXml(await unzipMxl(buf), f.name);
+  const text = decodeText(new Uint8Array(buf));
+  if (/<score-(partwise|timewise)/.test(text)) return parseMusicXml(text, f.name);
+  throw new Error('Format non reconnu : MIDI (.mid) ou MusicXML (.musicxml, .xml, .mxl).');
+}
+
 /* ---------- son ---------- */
 let AC;
 function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
@@ -759,6 +949,7 @@ function noteOn(m, vel, src, at) {
   logMsg(`note on   ${String(m).padStart(3)} ${FRM[m % 12].padEnd(5)} vél ${vel}`);
   diagNote(m, vel);
   if (view === 'play' && P) P.input(m, vel);
+  if (view === 'read') rdInput(m);
 }
 function noteOff(m) { MIDI.down.delete(m); logMsg(`note off  ${String(m).padStart(3)} ${FRM[m % 12]}`); diagNote(); }
 function logMsg(s) {
@@ -1346,13 +1537,14 @@ function renderHome() {
   $('#h-pieces-n').textContent = PIECES.length + ' pièces · domaine public';
   $('#g-pieces').innerHTML = PIECES.slice().sort((a, b) => a.lvl - b.lvl).map(p => progRow(p)).join('');
   const im = imports();
-  $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI importé garde son tempo, sa mesure et son armure ; ses doigtés sont calculés, corrigeables par appui long.</p>';
+  $('#g-imports').innerHTML = im.length ? im.map(p => progRow(p, true)).join('') : '<p class="ft" style="margin:0">Aucun fichier pour l’instant. Un MIDI ou un MusicXML (.musicxml, .mxl, par ex. exporté de MuseScore) garde son tempo, sa mesure et son armure ; le MusicXML apporte aussi ses doigtés écrits, le calcul complète le reste. Tout se corrige par appui long.</p>';
   const min = Math.floor((practice[dayKey(new Date())] || 0) / 60), st = streak();
   $('#h-min').textContent = min + ' / ' + GOAL_MIN + ' min';
   $('#h-ring').setAttribute('stroke-dasharray', (Math.min(1, min / GOAL_MIN) * 119.4).toFixed(1) + ' 119.4'); $('#h-ring').style.opacity = min ? 1 : 0;
   $('#h-streak').textContent = st + (st > 1 ? ' jours' : ' jour');
   const last = findPiece(LS.get('last', '')), pc = last || PIECES[0];
   $('#h-cta').textContent = (last ? 'Reprendre · ' : 'Commencer · ') + pc.title; $('#h-cta').dataset.open = pc.id;
+  rdHome();
   $('#s-acc').value = SET.accomp; $('#s-fing').value = SET.fing; $('#s-hands').checked = SET.hands; $('#s-view').value = SET.view; $('#s-metro').checked = SET.metro;
 }
 function findPiece(id) { return PIECES.concat(SCALES, imports()).find(p => p.id === id); }
@@ -1360,7 +1552,8 @@ function findPiece(id) { return PIECES.concat(SCALES, imports()).find(p => p.id 
 /* ---------- navigation ---------- */
 function show(v) {
   view = v;
-  $('#v-home').hidden = v !== 'home'; $('#v-diag').hidden = v !== 'diag'; $('#v-play').hidden = v !== 'play';
+  $('#v-home').hidden = v !== 'home'; $('#v-diag').hidden = v !== 'diag'; $('#v-play').hidden = v !== 'play'; $('#v-read').hidden = v !== 'read';
+  if (v === 'read') { rdSync(); rdStart(); }
   if (v !== 'play' && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   if (v === 'home') { savePractice(); renderHome(); }
   if (v === 'diag') renderDiag();
@@ -1373,14 +1566,14 @@ document.addEventListener('click', e => {
   if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); try { localStorage.removeItem('legato-fing-' + del.dataset.del); } catch (err) {} renderHome(); return; }
   const o = e.target.closest('[data-open]'); if (o && findPiece(o.dataset.open)) openPiece(findPiece(o.dataset.open));
 });
-document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open]')) { e.preventDefault(); e.target.click(); } });
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open], .hcard[data-go]')) { e.preventDefault(); e.target.click(); } });
 $('#pill').onclick = () => show('diag');
 $('#f-imp').onchange = async e => {
   const f = e.target.files[0]; if (!f) return; const msg = $('#imp-msg');
   try {
-    const pc = fromMidi(f.name, parseMidi(await f.arrayBuffer()));
+    const pc = await importFile(f);
     if (!LS.set('imports', imports().concat(pc))) throw new Error("Plus de place sur l'appareil pour ce fichier.");
-    msg.textContent = '« ' + pc.title + ' » ajouté.'; renderHome();
+    msg.textContent = '« ' + pc.title + ' » ajouté' + (pc.warn && pc.warn.length ? ' (' + pc.warn.join(' ; ') + ')' : '') + '.'; renderHome();
   } catch (err) { msg.textContent = err.message; }
   e.target.value = '';
 };
@@ -1643,6 +1836,215 @@ function calShow() {
 }
 $('#c-go').onclick = () => { if (CAL.on) { calStop(); CAL.last = 'arrêté'; calShow(); } else calStart(); };
 $('#c-zero').onclick = () => { calStop(); SET.latency = 0; saveSet(); CAL.last = 'remise à 0'; calShow(); };
+/* ---------- lecture : une note sur la portée, le piano répond ; les notes ratées ou lentes reviennent plus souvent ----------
+   Notes désignées par leur place sur la portée (rel = degrés au-dessus de la 1re ligne), jamais par un numéro d'octave. */
+const RD_CLEFS = { F: { bot: 18, name: 'clé de fa', marks: [-4, 0, 6, 10], lo: 33, hi: 67 }, G: { bot: 30, name: 'clé de sol', marks: [-2, 2, 5, 9], lo: 53, hi: 88 } };
+const rng = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const RD_LVLS = [
+  { name: 'Repères', desc: c => c === 'F' ? 'Sol 1re ligne, Fa 4e ligne, les deux Do' : 'Sol 2e ligne, les Do, Sol au-dessus', rel: c => RD_CLEFS[c].marks },
+  { name: 'Les lignes', desc: () => 'les cinq lignes', rel: () => [0, 2, 4, 6, 8] },
+  { name: 'Les interlignes', desc: () => 'les interlignes, dessous et dessus', rel: () => [-1, 1, 3, 5, 7, 9] },
+  { name: 'Toute la portée', desc: () => 'lignes et interlignes', rel: () => rng(-1, 9) },
+  { name: 'Lignes supplémentaires', desc: () => 'jusqu\'à deux lignes en dessous et au-dessus', rel: () => rng(-4, 12) },
+  { name: 'Dièses et bémols', desc: () => 'toute la portée, avec altérations', rel: () => rng(-1, 9), alt: true }];
+const RD_N = 40, RD_GOAL = { acc: 90, t: 2.5 };
+const RD = Object.assign({ clef: 'F', lvl: 0, names: false }, LS.get('read-set', {}), { cur: null, next: [], prev: [], n: 0, first: 0, times: [], t0: 0, miss: false, done: true, fb: '', flash: null, hint: false, ptr: {} });
+const RS = LS.get('read', {}); // { clé : { h: [1/0 des 10 derniers essais], t: [ms] } }
+const rdSave = () => LS.set('read-set', { clef: RD.clef, lvl: RD.lvl, names: RD.names });
+const stepMidi = s => (Math.floor(s / 7) + 1) * 12 + SEMI[s % 7];
+const fmtS = s => s.toFixed(1).replace('.', ',') + ' s';
+const ordF = (k, fem) => k === 1 ? (fem ? '1re' : '1er') : k + 'e';
+function rdItem(rel, alt, clef = RD.clef) {
+  const step = RD_CLEFS[clef].bot + rel;
+  return { rel, step, alt, midi: stepMidi(step) + alt, k: clef + step + (alt > 0 ? '#' : alt < 0 ? 'b' : ''), name: FR[LET[step % 7]] + (alt > 0 ? '♯' : alt < 0 ? '♭' : '') };
+}
+function rdPool(clef = RD.clef, lvl = RD.lvl) {
+  const L = RD_LVLS[lvl], out = [];
+  for (const r of L.rel(clef)) {
+    out.push(rdItem(r, 0, clef));
+    if (L.alt) { const l = (RD_CLEFS[clef].bot + r) % 7; if (l !== 2 && l !== 6) out.push(rdItem(r, 1, clef)); if (l !== 0 && l !== 3) out.push(rdItem(r, -1, clef)); }
+  }
+  return out;
+}
+function rdPlace(rel, midi) {
+  let s;
+  if (rel >= 0 && rel <= 8) s = rel % 2 ? ordF((rel + 1) / 2) + ' interligne' : ordF(rel / 2 + 1, true) + ' ligne';
+  else if (rel === -1) s = 'sous la portée';
+  else if (rel === 9) s = 'au-dessus de la portée';
+  else if (rel < 0) { const k = Math.floor(-rel / 2); s = rel % 2 ? 'sous la ' + ordF(k, true) + ' ligne supplémentaire' : ordF(k, true) + ' ligne supplémentaire en dessous'; }
+  else { const k = Math.floor((rel - 8) / 2); s = rel % 2 ? 'au-dessus de la ' + ordF(k, true) + ' ligne supplémentaire' : ordF(k, true) + ' ligne supplémentaire au-dessus'; }
+  return s + (midi === 60 ? ', do central' : '');
+}
+const rdAcc = k => { const s = RS[k]; return s && s.h.length ? s.h.reduce((a, b) => a + b, 0) / s.h.length : null; };
+const mixHex = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * t + parseInt(b.substr(i, 2), 16) * (1 - t)).toString(16).padStart(2, '0')).join('');
+const rdMean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+// poids du tirage : une note jamais vue 2,5 ; sinon 1 + 3 x le taux d'erreur, plus si la réponse est lente, au plus 4
+// (une note très ratée revient une fois sur deux ou trois, pas sans arrêt)
+function rdWeight(it) {
+  const s = RS[it.k]; if (!s || !s.h.length) return 2.5;
+  const md = median(s.t); return Math.min(4, 1 + 3 * (1 - rdAcc(it.k)) + (md > 2500 ? 1 : md > 1500 ? 0.4 : 0));
+}
+function rdPick(avoid) {
+  const all = rdPool(), pool = all.filter(it => !avoid.some(a => a && a.k === it.k)), P2 = pool.length ? pool : all;
+  let r = Math.random() * P2.reduce((s, it) => s + rdWeight(it), 0);
+  for (const it of P2) { r -= rdWeight(it); if (r <= 0) return it; }
+  return P2[P2.length - 1];
+}
+// à revoir : au moins 3 essais, moins de 90 % ou plus de 2 s
+function rdWeak(clef = RD.clef, lvl = RD.lvl) {
+  return rdPool(clef, lvl).filter(it => { const s = RS[it.k]; return s && s.h.length >= 3 && (rdAcc(it.k) < 0.9 || median(s.t) > 2000); })
+    .sort((a, b) => rdAcc(a.k) - rdAcc(b.k) || median(RS[b.k].t) - median(RS[a.k].t));
+}
+function rdStart() {
+  Object.assign(RD, { n: 0, first: 0, times: [], prev: [], done: false, miss: false, hint: false, flash: null, fb: '' });
+  RD.cur = rdPick([]); RD.next = [rdPick([RD.cur])]; RD.next.push(rdPick([RD.cur, RD.next[0]]));
+  RD.t0 = performance.now(); $('#r-res').hidden = true; rdRender();
+}
+function rdRecord(c, ok, rt) {
+  const s = RS[c.k] = RS[c.k] || { h: [], t: [] };
+  s.h.push(ok); s.t.push(Math.round(Math.min(rt, 15000))); if (s.h.length > 10) { s.h.shift(); s.t.shift(); }
+  LS.set('read', RS);
+}
+function rdInput(m) {
+  if (RD.done || !RD.cur) return;
+  const c = RD.cur, now = performance.now(), rt = now - RD.t0;
+  if (m !== c.midi) {
+    if (!RD.miss) { RD.miss = true; rdRecord(c, 0, rt); }
+    RD.hint = true; RD.flash = { m, ok: false, until: now + 400 };
+    RD.fb = (m - c.midi) % 12 === 0 ? `<b class="err">Bonne note, mauvaise octave</b> · ${c.name} est plus ${m > c.midi ? 'grave' : 'aigu'} : ${rdPlace(c.rel, c.midi)}`
+      : `<b class="err">✗ ${FRM[m % 12]}</b> · cherche ${c.name}, ${rdPlace(c.rel, c.midi)}`;
+    rdRender(); setTimeout(rdRenderKeys, 420); return;
+  }
+  if (!RD.miss) { RD.first++; RD.times.push(Math.min(rt, 10000)); rdRecord(c, 1, rt); }
+  addPractice(Math.min(10, rt / 1000));
+  RD.n++; RD.prev.push(Object.assign({ ok: !RD.miss }, c)); if (RD.prev.length > 2) RD.prev.shift();
+  RD.fb = `<b class="ok">✓ ${c.name}</b> · ${rdPlace(c.rel, c.midi)}${RD.miss ? '' : ' · ' + fmtS(rt / 1000)}`;
+  RD.flash = { m, ok: true, until: now + 300 }; setTimeout(rdRenderKeys, 320);
+  if (RD.n >= RD_N) { rdEnd(); return; }
+  RD.cur = RD.next.shift(); RD.next.push(rdPick([RD.cur, ...RD.next, c])); RD.miss = false; RD.hint = false; RD.t0 = now;
+  rdRender();
+}
+function rdPassed(clef, lvl) { const b = LS.get('read-best', {})[clef + lvl]; return !!b && b.acc >= RD_GOAL.acc && b.t <= RD_GOAL.t; }
+function rdEnd() {
+  RD.done = true; savePractice();
+  const acc = Math.round(RD.first * 100 / RD_N), avg = rdMean(RD.times) / 1000, bk = RD.clef + RD.lvl, best = LS.get('read-best', {});
+  if (!best[bk] || acc > best[bk].acc || (acc === best[bk].acc && avg < best[bk].t)) { best[bk] = { acc, t: +avg.toFixed(2) }; LS.set('read-best', best); }
+  const pass = acc >= RD_GOAL.acc && avg <= RD_GOAL.t, nxt = RD.lvl + 1 < RD_LVLS.length, weak = rdWeak().slice(0, 3);
+  $('#r-resbox').innerHTML = `<h3>Série terminée · ${RD_LVLS[RD.lvl].name} · ${RD_CLEFS[RD.clef].name}</h3>
+    <div class="mets"><div class="met"><span>Du premier coup</span><b>${acc} %</b><small>${RD.first} / ${RD_N} notes</small></div>
+      <div class="met"><span>Temps de réponse</span><b>${fmtS(avg)}</b><small>en moyenne, notes justes</small></div></div>
+    <p class="txt" style="margin:0">${pass ? (nxt ? 'Niveau réussi : tu peux passer au suivant.' : 'Dernier niveau réussi.') : 'Objectif du niveau : ' + RD_GOAL.acc + ' % du premier coup, en moins de ' + fmtS(RD_GOAL.t) + ' par note.'}${weak.length ? ' À revoir : ' + weak.map(w => w.name + ' (' + rdPlace(w.rel, w.midi) + ')').join(', ') + '.' : ''}</p>
+    <div class="row">${pass && nxt ? '<button class="btn p" type="button" id="rr-next">Niveau suivant</button>' : ''}<button class="btn${pass && nxt ? '' : ' p'}" type="button" id="rr-again">Encore une série</button><button class="btn" type="button" data-go="home">Retour</button></div>`;
+  $('#r-res').hidden = false;
+  $('#rr-again').onclick = rdStart;
+  if ($('#rr-next')) $('#rr-next').onclick = () => { RD.lvl++; rdSave(); rdSync(); rdStart(); };
+  rdRender();
+}
+function clefSvg(k, x, top, sp) {
+  const m = CM[k], h = m && m.a + m.d; if (!h) return '';
+  const fs = 100 * (k === 'G' ? 6.9 : 3.15) * sp / h, ink = top - (k === 'G' ? 1.45 : 0.02) * sp;
+  return `<text x="${(x + m.l * fs / 100).toFixed(1)}" y="${(ink + m.a * fs / 100).toFixed(1)}" font-size="${fs.toFixed(1)}" font-family='${MUSIC_FONT}' fill="${INK.ink}">${k === 'G' ? G_CLEF : F_CLEF}</text>`;
+}
+// dièse / bémol en chemins, comme drawAcc sur le canvas
+function accSvg(a, x, y, s, col) {
+  const w = Math.max(1, s * 0.1), f = v => v.toFixed(1);
+  const L = (x1, y1, x2, y2) => `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${col}" stroke-width="${f(w)}"/>`;
+  const Pg = pts => `<polygon points="${pts.map(([u, v]) => f(x + u * s) + ',' + f(y + v * s)).join(' ')}" fill="${col}"/>`;
+  if (a > 0) return L(x - .2 * s, y - 1.3 * s, x - .2 * s, y + 1.15 * s) + L(x + .2 * s, y - 1.15 * s, x + .2 * s, y + 1.3 * s)
+    + [-.33, .33].map(c => Pg([[-.55, c + .22], [.55, c - .02], [.55, c - .22], [-.55, c + .02]])).join('');
+  return L(x - .3 * s, y - 1.75 * s, x - .3 * s, y + .5 * s)
+    + `<path d="M${f(x - .3 * s)} ${f(y + .5 * s)}C${f(x + .65 * s)} ${f(y + .05 * s)} ${f(x + .6 * s)} ${f(y - .7 * s)} ${f(x - .3 * s)} ${f(y - .2 * s)}" fill="none" stroke="${col}" stroke-width="${f(s * .155)}"/>`;
+}
+function headSvg(it, x, yb, sp, col, opts = {}) {
+  const y = yb - it.rel * sp / 2, f = v => v.toFixed(1);
+  let s = opts.halo ? `<circle cx="${f(x)}" cy="${f(y)}" r="${f(1.2 * sp)}" fill="rgba(201,168,76,.28)" stroke="#c9a84c" stroke-width="2"/>` : '';
+  for (let r = -2; r >= it.rel; r -= 2) s += `<line x1="${f(x - 1.3 * sp)}" x2="${f(x + 1.3 * sp)}" y1="${f(yb - r * sp / 2)}" y2="${f(yb - r * sp / 2)}" stroke="${INK.staff}" stroke-width="1.2"/>`;
+  for (let r = 10; r <= it.rel; r += 2) s += `<line x1="${f(x - 1.3 * sp)}" x2="${f(x + 1.3 * sp)}" y1="${f(yb - r * sp / 2)}" y2="${f(yb - r * sp / 2)}" stroke="${INK.staff}" stroke-width="1.2"/>`;
+  if (it.alt) s += accSvg(it.alt, x - 1.75 * sp, y, sp, col);
+  s += `<ellipse cx="${f(x)}" cy="${f(y)}" rx="${f(.72 * sp)}" ry="${f(.48 * sp)}" transform="rotate(-20 ${f(x)} ${f(y)})" fill="none" stroke="${col}" stroke-width="${f(sp * .17)}"/>`;
+  return s;
+}
+function rdStaffSvg() {
+  const sp = 16, yb = 168, x0 = 16, x1 = 504;
+  let s = `<rect width="520" height="220" fill="${INK.paper}"/>`;
+  for (let i = 0; i < 5; i++) s += `<line x1="${x0}" x2="${x1}" y1="${yb - i * sp}" y2="${yb - i * sp}" stroke="${INK.staff}" stroke-width="1.2"/>`;
+  s += clefSvg(RD.clef, x0 + 6, yb - 4 * sp, sp);
+  const slots = RD.prev.map((p, i) => [p, 300 - 78 * (RD.prev.length - i), p.ok ? INK.ok : INK.err, 1])
+    .concat(RD.cur && !RD.done ? [[RD.cur, 300, INK.ink, 1, true]] : [], RD.done ? [] : RD.next.map((n, i) => [n, 300 + 78 * (i + 1), INK.ink, 0.5]));
+  for (const [it, x, col, op, halo] of slots) {
+    s += `<g opacity="${op}">${headSvg(it, x, yb, sp, col, { halo })}`;
+    // au-dessus de la portée, hors de portée des notes (jusqu'à deux lignes supplémentaires au-dessus)
+    if (RD.names || (halo && RD.hint)) s += `<text x="${x}" y="24" font-size="13" font-weight="600" text-anchor="middle" fill="${halo ? INK.wait : col}">${it.name}</text>`;
+    if (col === INK.ok || col === INK.err) s += `<text x="${x}" y="44" font-size="14" font-weight="700" text-anchor="middle" fill="${col}">${col === INK.ok ? '✓' : '✗'}</text>`;
+    s += '</g>';
+  }
+  return s;
+}
+// clavier en SVG (lecture, carte d'accueil) : st = { midi: couleur }
+function keysSvg(lo, hi, W, H, st, labels) {
+  while (isBlack(lo)) lo--; while (isBlack(hi)) hi++;
+  const wh = []; for (let m = lo; m <= hi; m++) if (!isBlack(m)) wh.push(m);
+  const kw = W / wh.length, pos = {}, f = v => v.toFixed(1); let w = '', b = '';
+  wh.forEach((m, i) => {
+    pos[m] = i * kw;
+    w += `<rect data-m="${m}" x="${f(i * kw + .5)}" y="0" width="${f(kw - 1)}" height="${H}" rx="3" fill="${st[m] || '#f0e8d8'}"/>`;
+    if (labels && m % 12 === 0) w += `<text x="${f(i * kw + kw / 2)}" y="${H - 6}" font-size="10" text-anchor="middle" fill="#8b8374" pointer-events="none">Do</text>`;
+  });
+  for (let m = lo; m <= hi; m++) if (isBlack(m)) b += `<rect data-m="${m}" x="${f(pos[m - 1] + kw * 0.7)}" y="0" width="${f(kw * 0.6)}" height="${f(H * 0.62)}" rx="2" fill="${st[m] || '#050607'}"/>`;
+  return `<svg viewBox="0 0 ${f(W)} ${H}" role="img" aria-label="Clavier">${w}${b}</svg>`;
+}
+function rdRenderKeys() {
+  if (view !== 'read') return;
+  const el = $('#r-keys'), c = RD_CLEFS[RD.clef], st = {}, now = performance.now();
+  for (const m of MIDI.down) st[m] = isBlack(m) ? '#3a4150' : '#c9c2b3';
+  if (RD.hint && RD.cur && !RD.done) st[RD.cur.midi] = isBlack(RD.cur.midi) ? '#8f7330' : '#e2c574';
+  if (RD.flash && RD.flash.until > now) st[RD.flash.m] = RD.flash.ok ? COL.ok : COL.err;
+  el.innerHTML = keysSvg(c.lo, c.hi, el.clientWidth || 780, el.clientHeight || 76, st, true);
+}
+function rdSide() {
+  const pool = rdPool(), weak = rdWeak(), st = {};
+  for (const it of pool) { const a = rdAcc(it.k); if (a !== null && a < 1) st[it.midi] = mixHex('#e5554b', isBlack(it.midi) ? '#050607' : '#f0e8d8', Math.min(1, (1 - a) * 2.2)); }
+  const lo = Math.min(...pool.map(i => i.midi)) - 2, hi = Math.max(...pool.map(i => i.midi)) + 2;
+  $('#r-heat').innerHTML = keysSvg(lo, hi, 210, 40, st, false);
+  $('#r-weak').innerHTML = weak.length ? weak.slice(0, 4).map(w => `<div><b>${w.name}</b><span>${rdPlace(w.rel, w.midi)}</span><b>${Math.round(rdAcc(w.k) * 100)} %</b></div>`).join('')
+    : `<p class="txt" style="margin:0;font-size:12px">${pool.some(it => RS[it.k]) ? 'Rien à revoir à ce niveau pour l’instant.' : 'Les notes qui te résistent s’afficheront ici.'}</p>`;
+}
+function rdRender() {
+  if (view !== 'read') return;
+  $('#r-count').textContent = Math.min(RD.n + (RD.done ? 0 : 1), RD_N) + ' / ' + RD_N;
+  $('#r-time').textContent = RD.times.length ? fmtS(rdMean(RD.times) / 1000) + ' en moyenne' : 'temps : -';
+  $('#r-fb').innerHTML = RD.fb || 'Joue la note entourée' + (RD.n ? '' : ' (les deux suivantes sont en gris)');
+  $('#r-staff').innerHTML = rdStaffSvg(); rdRenderKeys(); rdSide();
+}
+function rdSync() {
+  document.querySelectorAll('#r-clef button').forEach(b => b.classList.toggle('on', b.dataset.c === RD.clef));
+  $('#r-lvl').innerHTML = RD_LVLS.map((L, i) => `<option value="${i}">${rdPassed(RD.clef, i) ? '✓ ' : ''}${i + 1}. ${L.name}</option>`).join('');
+  $('#r-lvl').value = RD.lvl;
+  $('#r-title').textContent = 'Lecture · ' + RD_CLEFS[RD.clef].name;
+  $('#r-sub').textContent = 'Niveau ' + (RD.lvl + 1) + ' · ' + RD_LVLS[RD.lvl].desc(RD.clef);
+  $('#r-names').classList.toggle('on', RD.names); $('#r-names').setAttribute('aria-pressed', RD.names);
+  $('#r-names').style.background = RD.names ? 'var(--text)' : ''; $('#r-names').style.color = RD.names ? 'var(--bg)' : '';
+}
+// carte d'accueil : la portée du niveau en cours avec les notes à revoir (sinon celles du niveau)
+function rdHome() {
+  const weak = rdWeak(), show = (weak.length ? weak : rdPool()).slice(0, 5), sp = 7, yb = 50;
+  let s = `<rect width="230" height="74" rx="6" fill="${INK.paper}"/>`;
+  for (let i = 0; i < 5; i++) s += `<line x1="6" x2="224" y1="${yb - i * sp}" y2="${yb - i * sp}" stroke="${INK.staff}" stroke-width="1"/>`;
+  s += clefSvg(RD.clef, 10, yb - 4 * sp, sp);
+  show.forEach((it, i) => { s += headSvg(it, 66 + i * 34, yb, sp, weak.length ? INK.err : INK.ink); });
+  $('#h-read').innerHTML = `<svg viewBox="0 0 230 74" role="img" aria-label="Portée en ${RD_CLEFS[RD.clef].name}">${s}</svg>`;
+  $('#h-read-n').textContent = RD_CLEFS[RD.clef].name + ' · niveau ' + (RD.lvl + 1) + ' / ' + RD_LVLS.length;
+  const seen = rdPool().some(it => RS[it.k]);
+  $('#h-read-ft').textContent = weak.length ? weak.length + (weak.length > 1 ? ' notes à revoir' : ' note à revoir') + ' · ' + RD_LVLS[RD.lvl].name : seen ? RD_LVLS[RD.lvl].name + ' · rien à revoir' : RD_LVLS[RD.lvl].name + ' · lire les notes, le piano vérifie';
+}
+$('#r-clef').onclick = e => { const b = e.target.closest('[data-c]'); if (!b) return; RD.clef = b.dataset.c; rdSave(); rdSync(); rdStart(); };
+$('#r-lvl').onchange = e => { RD.lvl = +e.target.value; rdSave(); rdSync(); rdStart(); };
+$('#r-names').onclick = () => { RD.names = !RD.names; rdSave(); rdSync(); rdRender(); };
+$('#r-keys').addEventListener('pointerdown', e => { const k = e.target.closest('[data-m]'); if (!k) return; RD.ptr[e.pointerId] = +k.dataset.m; noteOn(+k.dataset.m, 80, 'screen', evTime(e)); });
+const rdUp = e => { if (RD.ptr[e.pointerId] !== undefined) { noteOff(RD.ptr[e.pointerId]); delete RD.ptr[e.pointerId]; if (view === 'read') rdRenderKeys(); } };
+$('#r-keys').addEventListener('pointerup', rdUp); $('#r-keys').addEventListener('pointercancel', rdUp);
+new ResizeObserver(() => { if (view === 'read') rdRenderKeys(); }).observe($('#r-keys'));
+
 const KEYMAP = ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK', 'KeyO', 'KeyL', 'KeyP', 'Semicolon'];
 let kbOct = 60; const kbDown = {};
 document.addEventListener('keydown', e => {

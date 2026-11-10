@@ -359,6 +359,88 @@ export async function run() {
       SET.view = 'score';
     }
 
+    // ---------- 7 septies. import MusicXML : anacrouse, liaison, accord, 2 portées, doigtés écrits, reprise 1re / 2e fois, .mxl ----------
+    {
+      const N = (s, o, d, st, x = '') => `<note><pitch><step>${s[0]}</step>${s[1] === '#' ? '<alter>1</alter>' : ''}<octave>${o}</octave></pitch><duration>${d}</duration>${x}<staff>${st}</staff></note>`;
+      const F = f => `<notations><technical><fingering>${f}</fingering></technical></notations>`;
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><score-partwise version="4.0"><work><work-title>Essai</work-title></work><identification><creator type="composer">Moi</creator></identification>
+        <part-list><score-part id="P1"><part-name>Piano</part-name></score-part><score-part id="P2"><part-name>Voix</part-name></score-part></part-list>
+        <part id="P1">
+        <measure number="0" implicit="yes"><attributes><divisions>2</divisions><key><fifths>1</fifths></key><time><beats>3</beats><beat-type>4</beat-type></time><staves>2</staves><clef number="1"><sign>G</sign></clef><clef number="2"><sign>F</sign></clef></attributes>
+          <direction><sound tempo="96"/></direction>${N('D', 5, 2, 1, F(5)).replace('</duration>', '</duration>')}</measure>
+        <measure number="1"><barline location="left"><repeat direction="forward"/></barline>${N('G', 4, 4, 1, '<tie type="start"/>' + F(1))}${N('G', 4, 2, 1, '<tie type="stop"/>')}<backup><duration>6</duration></backup>${N('G', 2, 6, 2)}${N('D', 3, 6, 2).replace('<note>', '<note><chord/>')}</measure>
+        <measure number="2"><barline location="left"><ending number="1" type="start"/></barline>${N('F#', 4, 6, 1)}<barline location="right"><ending number="1" type="stop"/><repeat direction="backward"/></barline></measure>
+        <measure number="3"><barline location="left"><ending number="2" type="start"/></barline>${N('A', 4, 6, 1)}<barline location="right"><ending number="2" type="discontinue"/></barline></measure>
+        <measure number="4"><note><rest/><duration>2</duration><staff>1</staff></note>${N('B', 4, 4, 1)}</measure>
+        </part><part id="P2"><measure number="0">${N('C', 6, 2, 1)}</measure></part></score-partwise>`;
+      const pcx = parseMusicXml(xml, 'essai.musicxml'); build(pcx);
+      const sig = pcx.notes.map(n => (n.hand === 'R' ? 'D' : 'G') + n.midi + '@' + n.on + '/' + n.dur).join(' ');
+      ok('MusicXML : titre, compositeur, 96 bpm, 3/4, armure Sol, partie de voix ignorée', pcx.title === 'Essai' && /^Moi · /.test(pcx.sub) && pcx.bpm === 96 && pcx.num === 3 && pcx.tn === 3 && pcx.td === 4 && pcx.key === 1 && pcx.warn.join() === '1 autre partie ignorée');
+      ok('MusicXML : anacrouse calée, liaison fondue, accord MG, reprise dépliée (1re fois puis 2e fois), silence', sig === 'D74@2/1 G43@3/3 G50@3/3 D67@3/3 D66@6/3 G43@9/3 G50@9/3 D67@9/3 D69@12/3 D71@16/2' && pcx.measures === 6, sig);
+      ok('MusicXML : doigtés écrits gardés (Ré 5, Sol 1 aux deux passages), le reste calculé', pcx.notes.filter(n => n.fx).length === 3 && pcx.notes.filter(n => n.fx).every(n => n.f === n.fx) && pcx.notes.every(n => n.f >= 1 && n.f <= 5) && /3 doigtés écrits/.test(pcx.sub));
+      // .mxl : zip (stocké, sans compression) avec META-INF/container.xml
+      const enc = new TextEncoder(), files = { 'META-INF/container.xml': '<container><rootfiles><rootfile full-path="score/essai.xml"/></rootfiles></container>', 'score/essai.xml': xml };
+      const chunks = [], cen = []; let zoff = 0;
+      for (const [nm, str] of Object.entries(files)) {
+        const nb = enc.encode(nm), db = enc.encode(str), lh = new DataView(new ArrayBuffer(30)), ch = new DataView(new ArrayBuffer(46));
+        lh.setUint32(0, 0x04034b50, true); lh.setUint32(18, db.length, true); lh.setUint32(22, db.length, true); lh.setUint16(26, nb.length, true);
+        ch.setUint32(0, 0x02014b50, true); ch.setUint32(20, db.length, true); ch.setUint32(24, db.length, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, zoff, true);
+        chunks.push(new Uint8Array(lh.buffer), nb, db); cen.push(new Uint8Array(ch.buffer), nb); zoff += 30 + nb.length + db.length;
+      }
+      const eocd = new DataView(new ArrayBuffer(22)); eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(8, 2, true); eocd.setUint16(10, 2, true); eocd.setUint32(12, cen.reduce((s, a) => s + a.length, 0), true); eocd.setUint32(16, zoff, true);
+      const pmx = await importFile(new File([...chunks, ...cen, new Uint8Array(eocd.buffer)], 'essai.mxl')); build(pmx);
+      ok('MusicXML : .mxl (zip) lu par son container.xml', pmx.notes.map(n => n.midi + '@' + n.on).join() === pcx.notes.map(n => n.midi + '@' + n.on).join());
+      let bad = ''; try { await importFile(new File(['bonjour'], 'x.txt')); } catch (e) { bad = e.message; }
+      ok('import : format inconnu refusé avec un message', /Format non reconnu/.test(bad));
+      // jouable de bout en bout, deux mains, dans les deux vues
+      SET.view = 'score'; openPiece(pcx); P.hands = 'B'; P.mode = 'wait'; restart(); MIDI.recent = {};
+      let g = 0, gu = 0, de = 0;
+      while (!P.done && gu++ < 20000) { P.step(1 / 60); try { draw(); } catch (e) { de++; } if (P.wait) { g++; const ms = P.wait.grp.map(n => n.midi); ms.forEach(m => key(m)); ms.forEach(m => rel(m)); MIDI.recent = {}; } }
+      const rx = P.result();
+      ok('MusicXML : joué en entier en attente, deux mains, sans erreur de dessin', P.done && rx.acc === 100 && rx.tot === 10 && g === 6 && de === 0, `${g} groupes, ${rx.ok}/${rx.tot}`);
+      $('#p-res').hidden = true;
+    }
+
+    // ---------- 7 octies. lecture : niveaux, places, réponses, octave, tirage pondéré, fin de série ----------
+    {
+      const rsBefore = JSON.stringify(RS), rdBefore = { clef: RD.clef, lvl: RD.lvl, names: RD.names };
+      for (const k in RS) delete RS[k];
+      const mids = (c, l) => rdPool(c, l).map(i => i.midi).join(' ');
+      ok('lecture : repères clé de fa = les deux Do, Sol 1re ligne, Fa 4e ligne', mids('F', 0) === '36 43 53 60', mids('F', 0));
+      ok('lecture : repères clé de sol = Do central, Sol 2e ligne, Do 3e interligne, Sol au-dessus', mids('G', 0) === '60 67 72 79', mids('G', 0));
+      ok('lecture : lignes de la clé de fa Sol Si Ré Fa La', mids('F', 1) === '43 47 50 53 57' && rdPool('F', 1).map(i => i.name).join() === 'Sol,Si,Ré,Fa,La');
+      ok('lecture : places nommées sans numéro d\'octave', rdPlace(1, 45) === '1er interligne' && rdPlace(0, 43) === '1re ligne' && rdPlace(-2, 40) === '1re ligne supplémentaire en dessous' && rdPlace(-3, 38) === 'sous la 1re ligne supplémentaire'
+        && rdPlace(10, 60) === '1re ligne supplémentaire au-dessus, do central' && rdPlace(-1, 41) === 'sous la portée' && rdPlace(6, 53) === '4e ligne');
+      const alt = rdPool('F', 5).map(i => i.name);
+      ok('lecture : niveau altérations avec Fa♯ et Si♭, sans Mi♯ / Si♯ / Do♭ / Fa♭', alt.includes('Fa♯') && alt.includes('Si♭') && !alt.some(n => /Mi♯|Si♯|Do♭|Fa♭/.test(n)) && rdPool('F', 5).every(i => i.midi === stepMidi(i.step) + i.alt), alt.length + ' notes');
+      RD.clef = 'F'; RD.lvl = 1; RD.names = false; show('read');
+      ok('lecture : la carte d\'accueil ouvre la vue, série de 40, note entourée', view === 'read' && !$('#v-read').hidden && $('#r-count').textContent === '1 / 40' && /<circle/.test($('#r-staff').innerHTML));
+      const c0 = RD.cur; noteOn(c0.midi + 2, 80, 'kbd'); noteOff(c0.midi + 2);
+      ok('lecture : fausse note = erreur notée, la bonne touche s\'allume, on attend la bonne', RD.cur === c0 && RD.miss && RS[c0.k].h.join() === '0' && RD.hint && /cherche/.test($('#r-fb').textContent) && $('#r-keys').innerHTML.includes('#e2c574'));
+      noteOn(c0.midi, 80, 'kbd'); noteOff(c0.midi);
+      ok('lecture : la bonne note fait avancer, sans compter au premier coup', RD.n === 1 && RD.first === 0 && RD.cur !== c0 && /✓/.test($('#r-fb').textContent));
+      const c1 = RD.cur; rdInput(c1.midi - 12);
+      ok('lecture : une octave à côté = « bonne note, mauvaise octave »', /mauvaise octave/.test($('#r-fb').textContent) && /plus aigu/.test($('#r-fb').textContent));
+      rdInput(c1.midi);
+      // tirage : une note toujours ratée revient bien plus souvent
+      for (const it of rdPool('F', 1)) RS[it.k] = { h: [1, 1, 1, 1, 1], t: [800, 800, 800, 800, 800] };
+      RS.F22 = { h: [0, 0, 0, 1, 0], t: [3000, 2800, 3100, 1200, 2900] };
+      const cnt = {}; for (let i = 0; i < 3000; i++) { const p = rdPick([]); cnt[p.name] = (cnt[p.name] || 0) + 1; }
+      ok('lecture : Ré (3e ligne) ratée et lente tirée bien plus souvent (répétition espacée)', cnt['Ré'] > 3 * cnt['Sol'], JSON.stringify(cnt));
+      rdRender();
+      ok('lecture : notes à revoir = Ré 3e ligne, 20 %', rdWeak('F', 1).length === 1 && rdWeak('F', 1)[0].k === 'F22' && /Ré3e ligne20 %/.test($('#r-weak').textContent), $('#r-weak').textContent);
+      // fin de série : tout juste du premier coup
+      rdStart(); for (let i = 0; i < 40; i++) rdInput(RD.cur.midi);
+      ok('lecture : 40 notes justes = série finie, 100 %, niveau suivant proposé', RD.done && RD.first === 40 && !$('#r-res').hidden && /100 %/.test($('#r-resbox').textContent) && $('#rr-next') && rdPassed('F', 1));
+      $('#rr-next').click();
+      ok('lecture : « Niveau suivant » passe aux interlignes et repart', RD.lvl === 2 && !RD.done && RD.n === 0 && $('#r-lvl').value === '2' && /✓ 2\. Les lignes/.test($('#r-lvl').innerHTML));
+      RD.clef = 'G'; RD.names = true; rdSync(); rdStart();
+      ok('lecture : clé de sol et noms affichés', /Lecture · clé de sol/.test($('#r-title').textContent) && $('#r-staff').innerHTML.includes('>' + RD.cur.name + '<'));
+      show('home');
+      ok('lecture : carte d\'accueil à jour (clé, niveau)', /clé de sol · niveau 3/.test($('#h-read-n').textContent) && /<ellipse/.test($('#h-read').innerHTML));
+      for (const k in RS) delete RS[k]; Object.assign(RS, JSON.parse(rsBefore)); Object.assign(RD, rdBefore, { done: true }); rdSave();
+    }
+
     // ---------- 8. dessin : chaque morceau, les deux vues, du début à la fin ----------
     let errs = 0, frames = 0;
     for (const p of PIECES.concat(SCALES, [imp, pc])) for (const v of ['score', 'fall']) {
