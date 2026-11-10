@@ -441,6 +441,57 @@ export async function run() {
       for (const k in RS) delete RS[k]; Object.assign(RS, JSON.parse(rsBefore)); Object.assign(RD, rdBefore, { done: true }); rdSave();
     }
 
+    // ---------- 7 nonies. catalogue : zip (index.json + mxl) ouvert depuis un fichier, gardé, recherche, ajout ----------
+    {
+      const enc = new TextEncoder(), zipOf = files => {
+        const chunks = [], cen = []; let off = 0;
+        for (const [nm, v] of Object.entries(files)) {
+          const nb = enc.encode(nm), db = typeof v === 'string' ? enc.encode(v) : v, lh = new DataView(new ArrayBuffer(30)), ch = new DataView(new ArrayBuffer(46));
+          lh.setUint32(0, 0x04034b50, true); lh.setUint32(18, db.length, true); lh.setUint32(22, db.length, true); lh.setUint16(26, nb.length, true);
+          ch.setUint32(0, 0x02014b50, true); ch.setUint32(20, db.length, true); ch.setUint32(24, db.length, true); ch.setUint16(28, nb.length, true); ch.setUint32(42, off, true);
+          chunks.push(new Uint8Array(lh.buffer), nb, db); cen.push(new Uint8Array(ch.buffer), nb); off += 30 + nb.length + db.length;
+        }
+        const e = new DataView(new ArrayBuffer(22)), n = Object.keys(files).length; e.setUint32(0, 0x06054b50, true); e.setUint16(8, n, true); e.setUint16(10, n, true); e.setUint32(12, cen.reduce((s, a) => s + a.length, 0), true); e.setUint32(16, off, true);
+        return new Blob([...chunks, ...cen, new Uint8Array(e.buffer)]);
+      };
+      const note = (s, o, f) => `<note><pitch><step>${s}</step><octave>${o}</octave></pitch><duration>1</duration><staff>1</staff>${f ? `<notations><technical><fingering>${f}</fingering></technical></notations>` : ''}</note>`;
+      const sx = `<score-partwise><part-list><score-part id="P1"/></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>${note('C', 5, 1)}${note('D', 5)}${note('E', 5)}${note('F', 5)}</measure></part></score-partwise>`;
+      const mxl = new Uint8Array(await zipOf({ 'META-INF/container.xml': '<container><rootfiles><rootfile full-path="s.xml"/></rootfiles></container>', 's.xml': sx }).arrayBuffer());
+      const idx = { v: 1, n: 2, src: 'essai', items: [['abc123', 'Petit essai', 'Moi', 1, 1, 4, 1, 45, 'CC0'], ['def456', 'Grande fugue', 'Quelqu’un', 3, 1, 4, 0, 0, 'PD']] };
+      const catBlob = zipOf({ 'index.json': JSON.stringify(idx), 'mxl/abc123.mxl': mxl, 'mxl/def456.mxl': mxl });
+      const keptBefore = await idbGet('catalogue').catch(() => undefined), catBefore = { blob: CAT.blob, files: CAT.files, idx: CAT.idx };
+      try {
+        Object.assign(CAT, { blob: null, files: null, idx: null, lvl: 0, fing: false }); $('#k-q').value = ''; $('#k-fing').checked = false;
+        show('cat');
+        await new Promise(r => setTimeout(r, 50));
+        const dt = new DataTransfer(); dt.items.add(new File([catBlob], 'legato-catalogue.zip')); $('#f-cat').files = dt.files; $('#f-cat').dispatchEvent(new Event('change'));
+        for (let i = 0; i < 50 && !/gardé/.test($('#k-msg').textContent); i++) await new Promise(r => setTimeout(r, 40));
+        const stored = await idbGet('catalogue');
+        ok('catalogue : ouvert depuis un fichier, gardé dans l\'appli (IndexedDB)', CAT.idx && CAT.idx.items.length === 2 && stored && stored.size === catBlob.size && $('#k-list').querySelectorAll('[data-cat]').length === 2 && /2 morceaux/.test($('#k-info').textContent));
+        $('#k-q').value = 'ESSAI pétit'; catRender();
+        ok('catalogue : recherche sans accents ni majuscules', [...$('#k-list').querySelectorAll('[data-cat]')].map(r => r.dataset.cat).join() === 'abc123');
+        $('#k-q').value = ''; $('#k-lvl [data-l="3"]').click();
+        const lv = [...$('#k-list').querySelectorAll('[data-cat]')].map(r => r.dataset.cat).join();
+        $('#k-lvl [data-l="0"]').click(); $('#k-fing').click();
+        const fg = [...$('#k-list').querySelectorAll('[data-cat]')].map(r => r.dataset.cat).join();
+        $('#k-fing').click();
+        ok('catalogue : filtres difficulté et « avec doigtés écrits »', lv === 'def456' && fg === 'abc123');
+        Object.assign(CAT, { blob: null, files: null, idx: null }); await catOpen();
+        ok('catalogue : relu depuis le stockage de l\'appli (sans le fichier)', CAT.idx && CAT.idx.items.length === 2);
+        const nImp = imports().length;
+        $('#k-list [data-cat="abc123"]').click();
+        for (let i = 0; i < 50 && view !== 'play'; i++) await new Promise(r => setTimeout(r, 40));
+        ok('catalogue : toucher un morceau l\'importe et l\'ouvre, doigté écrit gardé', view === 'play' && P.pc.cat === 'abc123' && P.pc.title === 'Petit essai' && P.notes.length === 4 && P.notes[0].f === 1 && imports().length === nImp + 1 && /CC0/.test(P.pc.src));
+        show('cat'); await new Promise(r => setTimeout(r, 30)); $('#k-list [data-cat="abc123"]').click();
+        for (let i = 0; i < 50 && view !== 'play'; i++) await new Promise(r => setTimeout(r, 40));
+        ok('catalogue : le rouvrir ne l\'ajoute pas deux fois', view === 'play' && imports().length === nImp + 1);
+      } finally {
+        if (keptBefore) await idbSet('catalogue', keptBefore); else await idbDo('readwrite', st => st.delete('catalogue'));
+        Object.assign(CAT, catBefore, { lvl: 0, fing: false }); $('#k-q').value = ''; $('#k-msg').textContent = '';
+        $('#p-res').hidden = true;
+      }
+    }
+
     // ---------- 8. dessin : chaque morceau, les deux vues, du début à la fin ----------
     let errs = 0, frames = 0;
     for (const p of PIECES.concat(SCALES, [imp, pc])) for (const v of ['score', 'fall']) {

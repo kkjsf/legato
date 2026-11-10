@@ -25,6 +25,35 @@ Si Pages recoince : pousser un commit vide plutôt qu'attendre la relance. **Vé
 P-145 en v9 : « ça marche bien sur P145 » (Simon, 2026-11-10)**, sans plus de détail (latence mesurée, son par l'audio USB : pas précisé). Le lien avec Harmonic Atlas est mis de côté à la demande de Simon. Livraison : bumper
 `APP_VERSION` (le worker en dérive son cache `legato-v<N>`), lancer les tests, commit, push.
 
+### v11 (2026-11-10) : catalogue PDMX sur le téléphone
+
+Demande de Simon : « je pourrais mettre ce catalogue sur mon tel aussi et l'appli piochera dedans ? ok prépare le catalogue ».
+
+- **Fichier catalogue** `perso/legato-catalogue.zip` (**2 604 pièces, 47 Mo** ; ignoré par git, jamais publié), fait par
+  `tools/build_catalog.py` depuis PDMX v9 (Zenodo 15571083 : `PDMX.csv` 225 Mo + `mxl.tar.gz` 1,9 Go,
+  téléchargés dans `perso/pdmx/`, lus en flux). Zip **stocké** (sans recompression) : `index.json`
+  (colonnes `id, titre, compositeur, niveau 1-3, mesures, notes, doigtés écrits, note x10, licence`,
+  classé des mieux notés aux autres) + `mxl/<id>.mxl` (id = 16 premiers caractères du hash PDMX).
+- **Sélection** : piano seul (pistes MIDI 0 à 7, une ou deux), `subset:no_license_conflict`,
+  `subset:all_valid`, `is_best_unique_arrangement`, ni brouillon ni payant, au moins 24 notes ; puis noté
+  3,5 ou plus, ou deux portées avec un compositeur nommé (60 notes au moins), ou deux portées et 3 favoris ;
+  avec des notes à hauteur (pas de batterie). **Liste blanche** : compositeur mort avant 1956 (`PD_COMPOSERS`),
+  traditionnel ou anonyme (`TRAD`), ou composition de l'auteur sans signe de reprise (`MODERN` : arr, cover, OST, Disney...).
+  Un 1er essai qui excluait seulement des genres laissait passer « Toss a Coin to your Witcher », « Le festin »,
+  « Patience » (genre non renseigné) : ne pas revenir à une liste noire.
+  **Pop, rock, musique de film, jazz... exclus sauf composition de l'auteur** (`is_original`) : marqués
+  domaine public, ce sont souvent des arrangements d'œuvres protégées. Niveau : `complexity` de MuseScore
+  (1 à 3), relevé d'un cran si les notes par mesure le disent, sinon estimé (< 7, < 16, au-delà).
+- **Dans l'appli** : bouton « Catalogue » (carte Répertoire), vue `v-cat`. Le fichier est ouvert une fois
+  (`#f-cat`), gardé dans **IndexedDB** (base `legato`, magasin `files`, clé `catalogue`,
+  `navigator.storage.persist()`), puis lu **à la demande** sur le Blob (`zipIndex` lit la fin du zip,
+  `zipEntry` un fichier ; `unzipMxl` passe aussi par eux). Recherche titre / compositeur sans accents ni
+  majuscules, filtres difficulté et « avec doigtés écrits », 80 résultats affichés. Toucher un morceau =
+  import MusicXML (`cat` = id, pas de doublon) et ouverture. Les morceaux ajoutés vont dans « Mes
+  fichiers » (localStorage, quelques Mo : à surveiller si on en ajoute beaucoup).
+- Tests : 117 (6 catalogue : zip fabriqué, ouvert par le champ fichier, gardé et relu d'IndexedDB,
+  recherche, filtres, ajout avec doigté écrit, pas de doublon ; le catalogue déjà gardé est remis après).
+
 ### v10 (2026-11-10) : import MusicXML et lecture des notes
 
 Demande de Simon : « ok pour le music xml et lecture clé de fa », « et déploie ».

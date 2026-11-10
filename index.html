@@ -83,6 +83,11 @@ select{background:var(--chip);border:1px solid var(--line);border-radius:8px;pad
 ol.help{margin:6px 0;padding-left:20px;color:var(--muted);font-size:13.5px;max-width:72ch}
 ol.help li{margin:3px 0}
 
+/* catalogue */
+#k-q{flex:1;min-width:180px;background:var(--chip);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+#k-list{font-size:13.5px}
+#k-list .prow{grid-template-columns:1fr auto auto;border-bottom:1px solid var(--line);border-radius:0;padding:6px 2px}
+
 /* diagnostic */
 .dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:14px}
 .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
@@ -199,7 +204,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
       <div class="prog" id="g-pieces"></div>
       <h4 class="sub">Mes fichiers <span>restent sur l'appareil</span></h4>
       <div class="prog" id="g-imports"></div>
-      <div class="row" style="gap:8px"><label class="btn" for="f-imp" style="cursor:pointer;padding:6px 11px;font-size:12.5px">Importer MIDI ou MusicXML</label><span class="ft" id="imp-msg"></span></div>
+      <div class="row" style="gap:8px"><button class="btn" type="button" data-go="cat" style="padding:6px 11px;font-size:12.5px">Catalogue</button><label class="btn" for="f-imp" style="cursor:pointer;padding:6px 11px;font-size:12.5px">Importer MIDI ou MusicXML</label><span class="ft" id="imp-msg"></span></div>
       <input type="file" id="f-imp" hidden></section>
     <section class="hcard"><h3>Réglages</h3>
       <div class="hset">
@@ -210,6 +215,22 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
         <label class="chk" for="s-hands"><input type="checkbox" id="s-hands"> Mains dessinées</label>
       </div></section>
   </main>
+</div>
+
+<div id="v-cat" class="page" hidden>
+  <div class="hd"><button class="ib" type="button" data-go="home" aria-label="Retour">‹</button><div class="logo" style="font-size:26px">Catalogue</div><span class="txt" id="k-info"></span></div>
+  <div id="k-empty"><p class="txt">Le catalogue est un fichier <b>legato-catalogue.zip</b> : des pièces pour piano du jeu de données PDMX (partitions MuseScore en domaine public ou CC0). Copie-le sur le téléphone et ouvre-le ici une fois : Legato le garde dans son propre stockage, la recherche et l'ajout marchent ensuite sans réseau, et le fichier copié peut être effacé.</p>
+    <label class="btn p" for="f-cat" style="cursor:pointer;display:inline-block">Ouvrir le fichier catalogue</label></div>
+  <div id="k-ui" hidden>
+    <div class="row" style="margin:12px 0 8px"><input type="search" id="k-q" placeholder="Titre ou compositeur" aria-label="Rechercher un titre ou un compositeur" autocomplete="off">
+      <div class="seg" id="k-lvl" role="group" aria-label="Difficulté"><button type="button" data-l="0">Tous</button><button type="button" data-l="1" title="Facile">●</button><button type="button" data-l="2" title="Moyen">●●</button><button type="button" data-l="3" title="Difficile">●●●</button></div>
+      <label class="chk" for="k-fing"><input type="checkbox" id="k-fing"> avec doigtés écrits</label></div>
+    <div class="prog" id="k-list"></div><p class="txt" id="k-more"></p>
+    <p class="txt" id="k-src"></p>
+    <p class="txt"><label class="lnk" for="f-cat" style="cursor:pointer">Remplacer le catalogue</label></p>
+  </div>
+  <p class="txt" id="k-msg" aria-live="polite"></p>
+  <input type="file" id="f-cat" hidden>
 </div>
 
 <div id="v-diag" class="page" hidden>
@@ -306,7 +327,7 @@ pre.log{margin:0;font:12px/1.55 ui-monospace,Consolas,monospace;color:#d8d0c4;wh
 
 <script>
 'use strict';
-const APP_VERSION = '10', APP_DATE = '10 novembre 2026';
+const APP_VERSION = '11', APP_DATE = '10 novembre 2026';
 const $ = s => document.querySelector(s);
 const LS = {
   get(k, d) { try { const v = localStorage.getItem('legato-' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
@@ -680,23 +701,30 @@ function fromMidi(name, m) {
 /* ---------- import MusicXML (.musicxml, .xml, .mxl) : notes, doigtés écrits, armure, mesure, tempo, liaisons, reprises ---------- */
 const decodeText = b => new TextDecoder(b[0] === 0xFF && b[1] === 0xFE ? 'utf-16le' : b[0] === 0xFE && b[1] === 0xFF ? 'utf-16be' : 'utf-8').decode(b);
 // .mxl = zip : répertoire central, puis META-INF/container.xml désigne la partition
-async function unzipMxl(buf) {
-  const d = new DataView(buf), u8 = new Uint8Array(buf);
-  let e = u8.length - 22; while (e >= 0 && d.getUint32(e, true) !== 0x06054b50) e--;
-  if (e < 0) throw new Error('Fichier .mxl illisible.');
-  const files = {}; let p = d.getUint32(e + 16, true);
-  for (let i = d.getUint16(e + 10, true); i > 0 && d.getUint32(p, true) === 0x02014b50; i--) {
-    const nl = d.getUint16(p + 28, true);
-    files[new TextDecoder().decode(u8.subarray(p + 46, p + 46 + nl))] = { meth: d.getUint16(p + 10, true), size: d.getUint32(p + 20, true), off: d.getUint32(p + 42, true) };
-    p += 46 + nl + d.getUint16(p + 30, true) + d.getUint16(p + 32, true);
+// zip lu sur un Blob, sans tout charger : la fin (répertoire central), puis chaque fichier à la demande
+async function zipIndex(blob) {
+  const tail = new DataView(await blob.slice(Math.max(0, blob.size - 65558)).arrayBuffer());
+  let e = tail.byteLength - 22; while (e >= 0 && tail.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("Ce fichier n'est pas un zip lisible.");
+  const size = tail.getUint32(e + 12, true), off = tail.getUint32(e + 16, true), files = {};
+  const cd = new DataView(await blob.slice(off, off + size).arrayBuffer()), u8 = new Uint8Array(cd.buffer), dec = new TextDecoder();
+  for (let p = 0; p + 46 <= cd.byteLength && cd.getUint32(p, true) === 0x02014b50; ) {
+    const nl = cd.getUint16(p + 28, true);
+    files[dec.decode(u8.subarray(p + 46, p + 46 + nl))] = { meth: cd.getUint16(p + 10, true), size: cd.getUint32(p + 20, true), off: cd.getUint32(p + 42, true) };
+    p += 46 + nl + cd.getUint16(p + 30, true) + cd.getUint16(p + 32, true);
   }
-  const get = async name => {
-    const f = files[name]; if (!f) return null;
-    const s = f.off + 30 + d.getUint16(f.off + 26, true) + d.getUint16(f.off + 28, true), raw = u8.slice(s, s + f.size);
-    if (f.meth === 0) return decodeText(raw);
-    if (f.meth !== 8 || !window.DecompressionStream) throw new Error('Compression .mxl non gérée par ce navigateur.');
-    return decodeText(new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()));
-  };
+  return files;
+}
+async function zipEntry(blob, f) {
+  const h = new DataView(await blob.slice(f.off, f.off + 30).arrayBuffer()), s = f.off + 30 + h.getUint16(26, true) + h.getUint16(28, true);
+  const raw = new Uint8Array(await blob.slice(s, s + f.size).arrayBuffer());
+  if (f.meth === 0) return raw;
+  if (f.meth !== 8 || !window.DecompressionStream) throw new Error('Compression non gérée par ce navigateur.');
+  return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+}
+async function unzipMxl(buf) {
+  const blob = new Blob([buf]), files = await zipIndex(blob).catch(() => { throw new Error('Fichier .mxl illisible.'); });
+  const get = async name => files[name] ? decodeText(await zipEntry(blob, files[name])) : null;
   const cont = await get('META-INF/container.xml');
   const root = (cont && (cont.match(/full-path="([^"]+)"/) || [])[1]) || Object.keys(files).find(k => /\.(musicxml|xml)$/i.test(k) && !k.startsWith('META-INF'));
   const xml = root && await get(root);
@@ -1552,7 +1580,8 @@ function findPiece(id) { return PIECES.concat(SCALES, imports()).find(p => p.id 
 /* ---------- navigation ---------- */
 function show(v) {
   view = v;
-  $('#v-home').hidden = v !== 'home'; $('#v-diag').hidden = v !== 'diag'; $('#v-play').hidden = v !== 'play'; $('#v-read').hidden = v !== 'read';
+  $('#v-home').hidden = v !== 'home'; $('#v-diag').hidden = v !== 'diag'; $('#v-play').hidden = v !== 'play'; $('#v-read').hidden = v !== 'read'; $('#v-cat').hidden = v !== 'cat';
+  if (v === 'cat') catOpen();
   if (v === 'read') { rdSync(); rdStart(); }
   if (v !== 'play' && wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
   if (v === 'home') { savePractice(); renderHome(); }
@@ -1564,9 +1593,10 @@ document.addEventListener('click', e => {
   const go = e.target.closest('[data-go]'); if (go) { show(go.dataset.go); return; }
   const del = e.target.closest('[data-del]');
   if (del) { e.stopPropagation(); LS.set('imports', imports().filter(p => p.id !== del.dataset.del)); try { localStorage.removeItem('legato-fing-' + del.dataset.del); } catch (err) {} renderHome(); return; }
+  const ct = e.target.closest('[data-cat]'); if (ct) { catAdd(ct.dataset.cat); return; }
   const o = e.target.closest('[data-open]'); if (o && findPiece(o.dataset.open)) openPiece(findPiece(o.dataset.open));
 });
-document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open], .hcard[data-go]')) { e.preventDefault(); e.target.click(); } });
+document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.prow[data-open], .prow[data-cat], .hcard[data-go]')) { e.preventDefault(); e.target.click(); } });
 $('#pill').onclick = () => show('diag');
 $('#f-imp').onchange = async e => {
   const f = e.target.files[0]; if (!f) return; const msg = $('#imp-msg');
@@ -2044,6 +2074,68 @@ $('#r-keys').addEventListener('pointerdown', e => { const k = e.target.closest('
 const rdUp = e => { if (RD.ptr[e.pointerId] !== undefined) { noteOff(RD.ptr[e.pointerId]); delete RD.ptr[e.pointerId]; if (view === 'read') rdRenderKeys(); } };
 $('#r-keys').addEventListener('pointerup', rdUp); $('#r-keys').addEventListener('pointercancel', rdUp);
 new ResizeObserver(() => { if (view === 'read') rdRenderKeys(); }).observe($('#r-keys'));
+
+/* ---------- catalogue : un .zip (index.json + mxl/<id>.mxl) ouvert une fois, gardé dans IndexedDB, lu à la demande ---------- */
+const CAT = { blob: null, files: null, idx: null, lvl: 0, fing: false };
+let IDBP = null;
+const idb = () => IDBP || (IDBP = new Promise((res, rej) => { const r = indexedDB.open('legato', 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }));
+const idbDo = (mode, fn) => idb().then(db => new Promise((res, rej) => { const t = db.transaction('files', mode), q = fn(t.objectStore('files')); t.oncomplete = () => res(q.result); t.onerror = t.onabort = () => rej(t.error); }));
+const idbGet = k => idbDo('readonly', st => st.get(k)), idbSet = (k, v) => idbDo('readwrite', st => st.put(v, k));
+async function catLoad(blob) {
+  const files = await zipIndex(blob);
+  if (!files['index.json']) throw new Error("Ce zip n'est pas un catalogue Legato (pas d'index.json).");
+  const idx = JSON.parse(decodeText(await zipEntry(blob, files['index.json'])));
+  Object.assign(CAT, { blob, files, idx });
+}
+const fold = t => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+async function catOpen() {
+  if (!CAT.idx) try { const b = await idbGet('catalogue'); if (b) await catLoad(b); } catch (e) { $('#k-msg').textContent = e.message; }
+  catRender();
+}
+// colonnes de l'index : id, titre, compositeur, niveau 1-3, mesures, notes, doigtés écrits, note x10, licence
+function catRender() {
+  const I = CAT.idx; $('#k-empty').hidden = !!I; $('#k-ui').hidden = !I;
+  if (!I) { $('#k-info').textContent = ''; return; }
+  $('#k-info').textContent = I.items.length.toLocaleString('fr-FR') + (I.items.length > 1 ? ' morceaux' : ' morceau');
+  $('#k-src').textContent = I.src || '';
+  document.querySelectorAll('#k-lvl button').forEach(b => b.classList.toggle('on', +b.dataset.l === CAT.lvl));
+  const words = fold($('#k-q').value.trim()).split(/\s+/).filter(Boolean), out = [];
+  if (!I.fold) I.fold = I.items.map(it => fold(it[1] + ' ' + it[2]));
+  let n = 0;
+  I.items.forEach((it, i) => {
+    if ((CAT.lvl && it[3] !== CAT.lvl) || (CAT.fing && !it[6]) || !words.every(w => I.fold[i].includes(w))) return;
+    if (n++ < 80) out.push(`<div class="prow" role="button" tabindex="0" data-cat="${esc(it[0])}"><b style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:var(--rh);letter-spacing:-1px">${'●'.repeat(it[3])}${'○'.repeat(3 - it[3])}</span> ${esc(it[1])}<span> · ${esc(it[2] || 'anonyme')}</span></b>`
+      + `<span>${it[4]} mes.${it[6] ? ' · doigtés' : ''}</span><span>${it[7] ? '★ ' + (it[7] / 10).toFixed(1).replace('.', ',') : ''}</span></div>`);
+  });
+  $('#k-list').innerHTML = out.join('') || '<p class="txt">Rien ne correspond.</p>';
+  $('#k-more').textContent = n > 80 ? `80 premiers sur ${n.toLocaleString('fr-FR')}, les mieux notés d'abord : précise la recherche.` : n ? n + ' morceau' + (n > 1 ? 'x' : '') : '';
+}
+async function catAdd(id) {
+  const have = imports().find(p => p.cat === id); if (have) { openPiece(have); return; }
+  try {
+    const it = CAT.idx.items.find(x => x[0] === id), f = CAT.files['mxl/' + id + '.mxl'];
+    if (!it || !f) throw new Error('Partition absente du catalogue.');
+    const pc = parseMusicXml(await unzipMxl((await zipEntry(CAT.blob, f)).buffer), it[1]);
+    Object.assign(pc, { cat: id, title: it[1].slice(0, 80), src: 'Catalogue PDMX, partition MuseScore ' + (it[8] === 'CC0' ? 'sous CC0' : 'dans le domaine public') + ', gardée sur cet appareil.' + (pc.warn.length ? ' ' + pc.warn.join(' ; ') + '.' : '') });
+    if (!LS.set('imports', imports().concat(pc))) throw new Error("Plus de place sur l'appareil : supprime quelques morceaux de « Mes fichiers ».");
+    $('#k-msg').textContent = ''; openPiece(pc);
+  } catch (e) { $('#k-msg').textContent = e.message; }
+}
+$('#f-cat').onchange = async e => {
+  const f = e.target.files[0], msg = $('#k-msg'); if (!f) return;
+  msg.textContent = 'Lecture du catalogue…';
+  try {
+    await catLoad(f); await idbSet('catalogue', f);
+    const kept = await idbGet('catalogue'); if (kept) CAT.blob = kept;
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    msg.textContent = 'Catalogue gardé dans Legato : le fichier copié peut être effacé.'; catRender();
+  } catch (err) { msg.textContent = err.message; }
+  e.target.value = '';
+};
+let catT = 0;
+$('#k-q').oninput = () => { clearTimeout(catT); catT = setTimeout(catRender, 150); };
+$('#k-lvl').onclick = e => { const b = e.target.closest('[data-l]'); if (b) { CAT.lvl = +b.dataset.l; catRender(); } };
+$('#k-fing').onchange = e => { CAT.fing = e.target.checked; catRender(); };
 
 const KEYMAP = ['KeyA', 'KeyW', 'KeyS', 'KeyE', 'KeyD', 'KeyF', 'KeyT', 'KeyG', 'KeyY', 'KeyH', 'KeyU', 'KeyJ', 'KeyK', 'KeyO', 'KeyL', 'KeyP', 'Semicolon'];
 let kbOct = 60; const kbDown = {};
